@@ -124,15 +124,15 @@ class _RootPageState extends State<RootPage> {
               child: Column(
                 children: rootItems.isEmpty
                     ? [ListTile(title: Text(tr(s, 'Пусто', 'Empty')))]
-                    : rootItems
-                        .map((e) => ListTile(
-                              dense: true,
-                              leading: Icon(e.isDir ? Icons.folder : Icons.insert_drive_file_outlined,
-                                  color: e.isDir ? Colors.amber : null),
-                              title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                              onTap: e.isDir ? () => loadRoot(e.path) : null,
-                            ))
-                        .toList(),
+                        : rootItems
+                            .map((e) => ListTile(
+                                  dense: true,
+                                  leading: Icon(e.isDir ? Icons.folder : Icons.insert_drive_file_outlined,
+                                      color: e.isDir ? Colors.amber : null),
+                                  title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  onTap: e.isDir ? () => loadRoot(e.path) : () => _viewFile(e),
+                                ))
+                            .toList(),
               ),
             ),
         ] else
@@ -147,6 +147,38 @@ class _RootPageState extends State<RootPage> {
             ),
           ),
       ],
+    );
+  }
+
+  Future<void> _viewFile(RootEntry e) async {
+    final s = widget.state;
+    setState(() => rootDirLoading = true);
+    String content;
+    try {
+      final res = await NativeService.instance.rootExec('head -c 65536 "${e.path}"');
+      content = res.ok
+          ? (res.stdout.isEmpty ? tr(s, '(пусто или бинарный файл)', '(empty or binary file)') : res.stdout)
+          : res.stderr;
+    } catch (err) {
+      content = '$err';
+    } finally {
+      if (mounted) setState(() => rootDirLoading = false);
+    }
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (x) => AlertDialog(
+        title: Text(e.name),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: SelectableText(content, style: const TextStyle(fontFamily: 'monospace', fontSize: 12)),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(x), child: Text(tr(s, 'Закрыть', 'Close'))),
+        ],
+      ),
     );
   }
 

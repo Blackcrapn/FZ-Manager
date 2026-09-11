@@ -43,6 +43,12 @@ class SettingsPage extends StatelessWidget {
         onChanged: (v) => state.grid = v,
       ),
       SwitchListTile(
+        secondary: const Icon(Icons.visibility_outlined),
+        title: Text(tr(state, 'Показывать скрытые файлы', 'Show hidden files')),
+        value: state.showHidden,
+        onChanged: (v) => state.showHidden = v,
+      ),
+      SwitchListTile(
         secondary: const Icon(Icons.auto_awesome),
         title: Text(tr(state, 'Подсказки Физзи', 'Fizzy tips')),
         value: state.assistant,

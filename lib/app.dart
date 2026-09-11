@@ -23,6 +23,7 @@ class AppState extends ChangeNotifier {
   String _path;
   String _accent;
   double _density;
+  bool _showHidden;
   Set<String> _favorites;
   Set<String> _bookmarks;
   List<String> _recent;
@@ -46,6 +47,7 @@ class AppState extends ChangeNotifier {
         _path = store.path,
         _accent = store.accent,
         _density = store.density,
+        _showHidden = store.showHidden,
         _favorites = store.favorites,
         _bookmarks = store.bookmarks,
         _recent = store.recent,
@@ -159,6 +161,13 @@ class AppState extends ChangeNotifier {
   set density(double v) {
     _density = v;
     store.density = v;
+    notifyListeners();
+  }
+
+  bool get showHidden => _showHidden;
+  set showHidden(bool v) {
+    _showHidden = v;
+    store.showHidden = v;
     notifyListeners();
   }
 

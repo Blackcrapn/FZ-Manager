@@ -147,6 +147,18 @@ class _OnboardingState extends State<Onboarding>
           labelText: tr(s, 'Фамилия (необязательно)', 'Last name (optional)'),
         ),
       ),
+      const SizedBox(height: 20),
+      Text(tr(s, 'Язык интерфейса', 'Interface language'),
+          style: Theme.of(context).textTheme.titleMedium),
+      const SizedBox(height: 8),
+      SegmentedButton<bool>(
+        segments: [
+          ButtonSegment(value: true, label: Text(tr(s, 'Русский', 'Russian'))),
+          ButtonSegment(value: false, label: Text(tr(s, 'Английский', 'English'))),
+        ],
+        selected: {s.russian},
+        onSelectionChanged: (v) => s.russian = v.first,
+      ),
     ],
   );
 

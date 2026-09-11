@@ -56,3 +56,7 @@ gitcheck.txt
 source_summary.txt
 busy
 app.main()
+
+# Release signing material (materialized from CI secrets)
+android/app/fz-release.jks
+android/app/key.properties

@@ -115,7 +115,9 @@ class _FilesPageState extends State<FilesPage> {
   Widget build(BuildContext context) {
     final s = widget.state;
     final shown = items
-        .where((e) => e.name.toLowerCase().contains(query.toLowerCase()))
+        .where((e) =>
+            (!s.showHidden ? !e.name.startsWith('.') : true) &&
+            e.name.toLowerCase().contains(query.toLowerCase()))
         .toList();
     return Column(
       children: [

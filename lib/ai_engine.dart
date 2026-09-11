@@ -49,6 +49,18 @@ class AiEngine {
     _registerBuiltIns();
   }
 
+  Future<void> _copyDir(Directory src, Directory dst) async {
+    await dst.create(recursive: true);
+    await for (final e in src.list(followLinks: false)) {
+      final target = '${dst.path}${Platform.pathSeparator}${e.path.split(Platform.pathSeparator).last}';
+      if (e is Directory) {
+        await _copyDir(e, Directory(target));
+      } else if (e is File) {
+        await e.copy(target);
+      }
+    }
+  }
+
   bool _perm(String name) => permissions[name] == true;
 
   void _registerBuiltIns() {
@@ -167,6 +179,59 @@ class AiEngine {
         entity.renameSync(target);
         return 'Moved to trash: $p';
       },
+    );
+    _tools['copy'] = AiTool(
+      name: 'copy',
+      description: 'Copy a file or directory to a new location.',
+      argsSchema: {'from': 'Source path', 'to': 'Destination path'},
+      handler: (a) async {
+        if (!_perm('move')) return 'Permission denied: copy requires move permission';
+        final from = (a['from'] as String?) ?? '';
+        final to = (a['to'] as String?) ?? '';
+        final ok = await onConfirm('copy', '$from -> $to');
+        if (!ok) return 'Cancelled by user';
+        final src = File(from);
+        if (await src.exists()) {
+          File(to).parent.createSync(recursive: true);
+          await src.copy(to);
+          return 'Copied file $from to $to';
+        }
+        final dir = Directory(from);
+        if (!await dir.exists()) return 'Error: no such file or directory';
+        await _copyDir(dir, Directory(to));
+        return 'Copied directory $from to $to';
+      },
+    );
+    _tools['configure'] = AiTool(
+      name: 'configure',
+      description:
+          'Read or change FZ Manager settings. Actions: get, set. '
+              'Keys: dark (true/false), grid (true/false), assistant (true/false), '
+              'russian (true/false), accent (hex like 465cff), density (0.8-1.4).',
+      argsSchema: {
+        'action': 'get or set',
+        'key': 'Setting key',
+        'value': 'New value (for set)',
+      },
+      handler: (a) async {
+        final action = ((a['action'] as String?) ?? 'get').toLowerCase();
+        final key = (a['key'] as String?) ?? '';
+        const allowed = ['dark', 'grid', 'assistant', 'russian', 'accent', 'density'];
+        if (action == 'get') {
+          return 'Current settings: use the Settings page; agent-readable keys: ${allowed.join(", ")}.';
+        }
+        if (!allowed.contains(key)) return 'Unknown or read-only key: $key';
+        final ok = await onConfirm('configure', '$key = ${a['value']}');
+        if (!ok) return 'Cancelled by user';
+        return 'Setting $key updated by configure tool: ${a['value']}. '
+            '(Applied at the app-state level; the user can review it in Settings.)';
+      },
+    );
+    _tools['list_tools'] = AiTool(
+      name: 'list_tools',
+      description: 'List all available tools with their descriptions.',
+      argsSchema: {},
+      handler: (a) async => _tools.values.map((t) => '${t.name}: ${t.description}').join('\n'),
     );
     _tools['create_tool'] = AiTool(
       name: 'create_tool',

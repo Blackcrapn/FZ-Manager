@@ -22,29 +22,64 @@ jobs:
         with:
           channel: stable
 
+      - name: Materialize signing material from secrets
+        env:
+          FZ_KEYSTORE_BASE64: ${{ secrets.FZ_KEYSTORE_BASE64 }}
+          FZ_KEYSTORE_PROPERTIES: ${{ secrets.FZ_KEYSTORE_PROPERTIES }}
+        run: |
+          echo "$FZ_KEYSTORE_BASE64" | base64 --decode > android/app/fz-release.jks
+          printf '%s' "$FZ_KEYSTORE_PROPERTIES" > android/app/key.properties
+
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - run: flutter test
       - run: flutter build apk --release
 
+      - name: Verify APK is properly signed
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          BT="$SDK/build-tools"
+          APKSIGNER="$(ls -1 "$BT"/*/apksigner 2>/dev/null | sort -V | tail -1)"
+          "$APKSIGNER" verify --print-certs "$APK" || { echo "::error::APK signature verification FAILED - package would be invalid"; exit 1; }
+          echo "APK signature verified OK"
+
+      - name: Compute SHA256
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          sha256sum "$APK" | tee app-release.apk.sha256
+
       - uses: actions/upload-artifact@v4
         with:
           name: fz-manager-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: |
+            build/app/outputs/flutter-apk/app-release.apk
+            app-release.apk.sha256
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: FZ Manager v1.0.0
+          tag_name: v1.1.0
+          name: FZ Manager v1.1.0
           body: |
             FZ Manager — файловый менеджер нового поколения.
 
-            - Умный поиск путей с автодополнением и исправлением (mojibake RU исправлен)
-            - Root-раздел с навигацией по системным файлам (через su)
-            - ИИ Мозг: реальный агент с инструментами, чат, кастомный провайдер
-            - Персистентность настроек (тема, язык, избранное, закладки)
-            - Обучение с Физзи, корзина с восстановлением, кастомизация
-          files: build/app/outputs/flutter-apk/app-release.apk
+            ### Что нового в v1.1.0
+            - Исправлена подпись APK: теперь постоянный release-ключ + верификация apksigner в CI (пакет устанавливается корректно)
+            - ИИ Мозг: инструменты copy, configure (настройки FZ), list_tools
+            - Root: просмотр текстовых системных файлов через su cat
+            - Онбординг: выбор языка в форме данных пользователя
+            - Показ скрытых файлов (настройка + фильтр), новые темы Физзи
+
+            ### Основное
+            - Умный поиск путей с автодополнением и автоисправлением (/data/lokal → /data/local)
+            - Root-раздел с навигацией по системным файлам (su)
+            - ИИ Мозг: реальный агент с инструментами и созданием своих инструментов, кастомный провайдер
+            - Персистентность настроек, обучение с Физзи, корзина с восстановлением, кастомизация
+
+            SHA256: см. файл app-release.apk.sha256
+          files: |
+            build/app/outputs/flutter-apk/app-release.apk
+            app-release.apk.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

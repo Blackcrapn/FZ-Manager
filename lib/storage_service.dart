@@ -23,6 +23,7 @@ class StorageService {
   static const _path = 'path';
   static const _accent = 'accent';
   static const _density = 'density';
+  static const _showHidden = 'showHidden';
 
   final SharedPreferences _p;
   StorageService._(this._p);
@@ -77,6 +78,9 @@ class StorageService {
 
   double get density => _p.getDouble(_density) ?? 1.0;
   set density(double v) => _p.setDouble(_density, v);
+
+  bool get showHidden => _p.getBool(_showHidden) ?? false;
+  set showHidden(bool v) => _p.setBool(_showHidden, v);
 
   Set<String> get favorites => (_p.getStringList(_favorites) ?? []).toSet();
   set favorites(Set<String> v) => _p.setStringList(_favorites, v.toList());

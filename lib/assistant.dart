@@ -120,6 +120,36 @@ class Fizzy {
                   'can grant the "All files" permission. Without it access is limited '
                   'to your media files and shared folders.',
         ),
+        KnowledgeTopic(
+          id: 'rootview',
+          ruTitle: 'Просмотр системных файлов',
+          enTitle: 'Viewing system files',
+          ruKeywords: const ['системн', 'просмотр', 'build.prop', 'системных файлов', 'cat'],
+          enKeywords: const ['system', 'view', 'build.prop', 'cat'],
+          ruBody:
+              'В разделе Root можно не только проверить доступ, но и открывать '
+                  'системные файлы для просмотра: нажмите на файл — его содержимое '
+                  'покажется в окне (первые 64 КБ, только чтение).',
+          enBody:
+              'In the Root section you can not only check access but also open '
+                  'system files for viewing: tap a file and its content appears '
+                  'in a dialog (first 64 KB, read-only).',
+        ),
+        KnowledgeTopic(
+          id: 'aicopy',
+          ruTitle: 'ИИ-агент: копирование и настройки',
+          enTitle: 'AI agent: copy and settings',
+          ruKeywords: const ['копиров', 'скопир', 'настройки ии', 'configure', 'copy'],
+          enKeywords: const ['copy', 'configure', 'agent settings'],
+          ruBody:
+              'ИИ Мозг умеет копировать файлы и папки (инструмент copy) и читать/'
+                  'менять настройки FZ Manager (инструмент configure — тема, сетка, '
+                  'язык, акцент, плотность). Все изменения подтверждаются.',
+          enBody:
+              'AI Brain can copy files and folders (copy tool) and read/change '
+                  'FZ Manager settings (configure tool — theme, grid, language, '
+                  'accent, density). All changes are confirmed.',
+        ),
       ];
 
   /// Answers a free-form question using simple keyword matching.
