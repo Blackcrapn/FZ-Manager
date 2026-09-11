@@ -774,6 +774,7 @@ class Fizzy {
       entry: null,
     );
   }
+}
 
 const _enSmalltalkMap = <String, String>{
   'привет': 'Hello! I am Fizzy. Ask me about files, Root or the AI Brain — or ask for a tip.',
