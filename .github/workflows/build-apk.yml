@@ -36,7 +36,9 @@ jobs:
 
       - name: Resolve version
         id: ver
-        run: echo "tag=v$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //' | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+        run: |
+          V="$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //' | cut -d+ -f1)"
+          echo "tag=v$V" >> "$GITHUB_OUTPUT"
 
       - run: flutter build apk --release
 
