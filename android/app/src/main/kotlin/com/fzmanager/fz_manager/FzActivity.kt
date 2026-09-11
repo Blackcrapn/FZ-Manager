@@ -1,5 +1,7 @@
 package com.fzmanager.fz_manager
 
+import android.content.Intent
+import android.net.Uri
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -30,6 +32,21 @@ class FzActivity : FlutterActivity() {
                 "hasApiKey" -> result.success(getPreferences(MODE_PRIVATE).contains("api_key"))
                 "deleteApiKey" -> { getPreferences(MODE_PRIVATE).edit().remove("api_key").apply(); result.success(true) }
                 "checkManageStorage" -> result.success(isAllFilesAccess())
+                "openManageStorageSettings" -> {
+                    try {
+                        val intent = Intent(
+                            android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                            Uri.parse("package:$packageName")
+                        )
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        try {
+                            startActivity(Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+                            result.success(true)
+                        } catch (e2: Exception) { result.error("SETTINGS", e2.message, null) }
+                    }
+                }
                 "rootAvailable" -> result.success(isRootAvailable())
                 "rootExec" -> {
                     val cmd = call.argument<String>("command") ?: ""

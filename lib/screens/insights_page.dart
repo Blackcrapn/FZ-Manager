@@ -1,4 +1,4 @@
-import 'dart:io';
+﻿import 'dart:io';
 import 'package:flutter/material.dart';
 import '../app.dart';
 import '../widgets.dart';
@@ -20,7 +20,7 @@ class _InsightsPageState extends State<InsightsPage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(tr(s, 'Обзор хранилища', 'Storage insights'),
+        Text(tr(s, 'РћР±Р·РѕСЂ С…СЂР°РЅРёР»РёС‰Р°', 'Storage insights'),
             style: Theme.of(context)
                 .textTheme
                 .headlineSmall
@@ -31,31 +31,31 @@ class _InsightsPageState extends State<InsightsPage> {
           runSpacing: 12,
           children: [
             _card(context, Icons.pie_chart_outline,
-                tr(s, 'Анализ места', 'Space analysis'),
-                tr(s, 'Категории и размеры каталогов', 'Categories and folder sizes'),
+                tr(s, 'РђРЅР°Р»РёР· РјРµСЃС‚Р°', 'Space analysis'),
+                tr(s, 'РљР°С‚РµРіРѕСЂРёРё Рё СЂР°Р·РјРµСЂС‹ РєР°С‚Р°Р»РѕРіРѕРІ', 'Categories and folder sizes'),
                 onTap: () => _analyze(s)),
             _card(context, Icons.copy_all_outlined,
-                tr(s, 'Дубликаты', 'Duplicates'),
-                tr(s, 'Сканирование по размеру и хэшу', 'Size and hash scanning'),
+                tr(s, 'Р”СѓР±Р»РёРєР°С‚С‹', 'Duplicates'),
+                tr(s, 'РЎРєР°РЅРёСЂРѕРІР°РЅРёРµ РїРѕ СЂР°Р·РјРµСЂСѓ Рё С…СЌС€Сѓ', 'Size and hash scanning'),
                 onTap: () => _scanDuplicates(s)),
             _card(context, Icons.data_usage,
-                tr(s, 'Большие файлы', 'Large files'),
-                tr(s, 'Найти самые объёмные элементы', 'Find largest items'),
+                tr(s, 'Р‘РѕР»СЊС€РёРµ С„Р°Р№Р»С‹', 'Large files'),
+                tr(s, 'РќР°Р№С‚Рё СЃР°РјС‹Рµ РѕР±СЉС‘РјРЅС‹Рµ СЌР»РµРјРµРЅС‚С‹', 'Find largest items'),
                 onTap: () => _scanLarge(s)),
             _card(context, Icons.history,
-                tr(s, 'Недавние', 'Recent'), '${s.recent.length}',
+                tr(s, 'РќРµРґР°РІРЅРёРµ', 'Recent'), '${s.recent.length}',
                 onTap: () => _paths(s.recent.take(15).toList())),
             _card(context, Icons.delete_sweep_outlined,
-                tr(s, 'Корзина', 'Trash'), '.fz_trash',
+                tr(s, 'РљРѕСЂР·РёРЅР°', 'Trash'), '.fz_trash',
                 onTap: () => _trash(s)),
             _card(context, Icons.star,
-                tr(s, 'Закладки', 'Bookmarks'), '${s.bookmarks.length}',
+                tr(s, 'Р—Р°РєР»Р°РґРєРё', 'Bookmarks'), '${s.bookmarks.length}',
                 onTap: () => _paths(s.bookmarks.toList())),
           ],
         ),
         const SizedBox(height: 20),
         if (largeFiles.isNotEmpty) ...[
-          Text(tr(s, 'Большие файлы', 'Large files'),
+          Text(tr(s, 'Р‘РѕР»СЊС€РёРµ С„Р°Р№Р»С‹', 'Large files'),
               style: Theme.of(context).textTheme.titleLarge),
           ...largeFiles.map((e) => ListTile(
               leading: const Icon(Icons.insert_drive_file_outlined),
@@ -70,7 +70,7 @@ class _InsightsPageState extends State<InsightsPage> {
       SizedBox(
         width: 260,
         height: 145,
-        child: Card(
+        child: GlassCard(
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(12),
@@ -97,24 +97,24 @@ class _InsightsPageState extends State<InsightsPage> {
     showDialog(
       context: context,
       builder: (x) => AlertDialog(
-        title: Text(tr(s, 'Анализ места', 'Space analysis')),
+        title: Text(tr(s, 'РђРЅР°Р»РёР· РјРµСЃС‚Р°', 'Space analysis')),
         content: Text(tr(
           s,
-          'Сканирование покажет размеры папок в текущем хранилище. '
-              'В этом MVP доступен каркас функции.',
+          'РЎРєР°РЅРёСЂРѕРІР°РЅРёРµ РїРѕРєР°Р¶РµС‚ СЂР°Р·РјРµСЂС‹ РїР°РїРѕРє РІ С‚РµРєСѓС‰РµРј С…СЂР°РЅРёР»РёС‰Рµ. '
+              'Р’ СЌС‚РѕРј MVP РґРѕСЃС‚СѓРїРµРЅ РєР°СЂРєР°СЃ С„СѓРЅРєС†РёРё.',
           'Scanning will show folder sizes in the current storage. '
               'In this MVP the function scaffold is available.',
         )),
         actions: [
           TextButton(onPressed: () => Navigator.pop(x),
-              child: Text(tr(s, 'ОК', 'OK'))),
+              child: Text(tr(s, 'РћРљ', 'OK'))),
         ],
       ),
     );
   }
 
   Future<void> _scanDuplicates(AppState s) async {
-    _snack(tr(s, 'Сканер дубликатов — каркас', 'Duplicates scanner — scaffold'));
+    _snack(tr(s, 'РЎРєР°РЅРµСЂ РґСѓР±Р»РёРєР°С‚РѕРІ вЂ” РєР°СЂРєР°СЃ', 'Duplicates scanner вЂ” scaffold'));
   }
 
   Future<void> _scanLarge(AppState s) async {
@@ -148,7 +148,7 @@ class _InsightsPageState extends State<InsightsPage> {
   Future<void> _trash(AppState s) async {
     final trash = Directory('${s.path}${Platform.pathSeparator}.fz_trash');
     if (!await trash.exists()) {
-      _snack(tr(s, 'Корзина пуста', 'Trash is empty'));
+      _snack(tr(s, 'РљРѕСЂР·РёРЅР° РїСѓСЃС‚Р°', 'Trash is empty'));
       return;
     }
     final entries = <FileSystemEntity>[];
@@ -159,11 +159,11 @@ class _InsightsPageState extends State<InsightsPage> {
     showDialog(
       context: context,
       builder: (x) => AlertDialog(
-        title: Text(tr(s, 'Корзина', 'Trash')),
+        title: Text(tr(s, 'РљРѕСЂР·РёРЅР°', 'Trash')),
         content: SizedBox(
           width: 500,
           child: entries.isEmpty
-              ? Text(tr(s, 'Корзина пуста', 'Trash is empty'))
+              ? Text(tr(s, 'РљРѕСЂР·РёРЅР° РїСѓСЃС‚Р°', 'Trash is empty'))
               : ListView(
                   shrinkWrap: true,
                   children: entries
@@ -174,7 +174,7 @@ class _InsightsPageState extends State<InsightsPage> {
                             title: Text(e.path.split(Platform.pathSeparator).last),
                             trailing: IconButton(
                               icon: const Icon(Icons.restore),
-                              tooltip: tr(s, 'Восстановить', 'Restore'),
+                              tooltip: tr(s, 'Р’РѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ', 'Restore'),
                               onPressed: () async {
                                 final name = e.path
                                     .split(Platform.pathSeparator)
@@ -190,7 +190,7 @@ class _InsightsPageState extends State<InsightsPage> {
                                   } else {
                                     await File(e.path).rename(target);
                                   }
-                                  s.log('${tr(s, 'Восстановлено', 'Restored')}: $cleaned');
+                                  s.log('${tr(s, 'Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРѕ', 'Restored')}: $cleaned');
                                 } catch (err) {
                                   _snack(err.toString());
                                 }
@@ -204,7 +204,7 @@ class _InsightsPageState extends State<InsightsPage> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(x),
-              child: Text(tr(s, 'Закрыть', 'Close'))),
+              child: Text(tr(s, 'Р—Р°РєСЂС‹С‚СЊ', 'Close'))),
         ],
       ),
     );
@@ -212,13 +212,13 @@ class _InsightsPageState extends State<InsightsPage> {
 
   void _paths(List<String> p) {
     if (p.isEmpty) {
-      _snack(tr(widget.state, 'Пока пусто', 'Empty for now'));
+      _snack(tr(widget.state, 'РџРѕРєР° РїСѓСЃС‚Рѕ', 'Empty for now'));
       return;
     }
     showDialog(
       context: context,
       builder: (x) => AlertDialog(
-        title: Text(tr(widget.state, 'Пути', 'Paths')),
+        title: Text(tr(widget.state, 'РџСѓС‚Рё', 'Paths')),
         content: SizedBox(
           width: 500,
           child: ListView(shrinkWrap: true,
@@ -226,7 +226,7 @@ class _InsightsPageState extends State<InsightsPage> {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(x),
-              child: Text(tr(widget.state, 'Закрыть', 'Close'))),
+              child: Text(tr(widget.state, 'Р—Р°РєСЂС‹С‚СЊ', 'Close'))),
         ],
       ),
     );

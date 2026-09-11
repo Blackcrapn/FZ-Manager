@@ -147,46 +147,60 @@ class _AiPageState extends State<AiPage> {
     );
   }
 
-  Widget _providerCard(AppState s) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          TextField(
-            controller: url,
-            decoration: InputDecoration(
-              labelText: tr(s, 'URL провайдера', 'Provider URL'),
-              hintText: 'https://api.openai.com/v1',
-            ),
+  Widget _providerCard(AppState s) => GlassCard(
+    child: Column(
+      children: [
+        Row(
+          children: [
+            Icon(Icons.tune_rounded, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 10),
+            Text(tr(s, 'Ваш провайдер', 'Your provider'),
+                style: const TextStyle(fontWeight: FontWeight.w700)),
+          ],
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: url,
+          decoration: InputDecoration(
+            labelText: tr(s, 'URL провайдера', 'Provider URL'),
+            hintText: 'https://api.openai.com/v1',
+            border: const OutlineInputBorder(),
+            isDense: true,
           ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: model,
-            decoration: const InputDecoration(labelText: 'Model'),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: model,
+          decoration: const InputDecoration(
+            labelText: 'Model',
+            border: OutlineInputBorder(),
+            isDense: true,
           ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: key,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: 'API key',
-              helperText: tr(
-                s,
-                'Не хранится в исходном коде; шифруется Android Keystore.',
-                'Never stored in source; encrypted with Android Keystore.',
-              ),
-            ),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: key,
+          obscureText: true,
+          decoration: InputDecoration(
+            labelText: 'API key',
+            border: const OutlineInputBorder(),
+            isDense: true,
+            helperText: tr(
+              s,
+              'Шифруется Android Keystore. Не хранится в коде и логах.',
+              'Encrypted with Android Keystore. Never stored in code or logs.'),
           ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: save,
-              child: Text(tr(s, 'Сохранить', 'Save')),
-            ),
+        ),
+        const SizedBox(height: 12),
+        Align(
+          alignment: Alignment.centerRight,
+          child: FilledButton.icon(
+            onPressed: save,
+            icon: const Icon(Icons.save_outlined),
+            label: Text(tr(s, 'Сохранить', 'Save')),
           ),
-        ],
-      ),
+        ),
+      ],
     ),
   );
 

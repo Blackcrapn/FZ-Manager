@@ -39,6 +39,7 @@ class _HomeState extends State<Home> {
           _d(s, Icons.auto_awesome_outlined, Icons.auto_awesome, 'Физзи', 'Fizzy'),
           _d(s, Icons.settings_outlined, Icons.settings, 'Настройки', 'Settings'),
         ];
+        final scheme = Theme.of(context).colorScheme;
         return Scaffold(
           body: SafeArea(
             child: Row(
@@ -54,7 +55,21 @@ class _HomeState extends State<Home> {
                     selectedIndex: index,
                     onDestinationSelected: (v) => setState(() => index = v),
                   ),
-                Expanded(child: pages[index]),
+                Expanded(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          scheme.primaryContainer.withValues(alpha: 0.06),
+                          scheme.surface,
+                        ],
+                      ),
+                    ),
+                    child: pages[index],
+                  ),
+                ),
               ],
             ),
           ),
@@ -63,6 +78,7 @@ class _HomeState extends State<Home> {
               : NavigationBar(
                   selectedIndex: index,
                   onDestinationSelected: (v) => setState(() => index = v),
+                  labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                   destinations: dests
                       .map(
                         (d) => NavigationDestination(

@@ -25,6 +25,11 @@ class NativeService {
     return v ?? false;
   }
 
+  Future<bool> openManageStorageSettings() async {
+    final ok = await _channel.invokeMethod<bool>('openManageStorageSettings');
+    return ok ?? false;
+  }
+
   Future<bool> isRootAvailable() async {
     final v = await _channel.invokeMethod<bool>('rootAvailable');
     return v ?? false;
@@ -43,6 +48,18 @@ class NativeService {
       stderr: (map?['stderr'] as String?) ?? '',
     );
   }
+
+  /// Reads a file through su (for files not accessible to the app).
+  Future<({bool ok, String stdout, String stderr})> readRootFile(
+    String path,
+  ) async =>
+      rootExec('head -c 65536 "$path"');
+
+  /// Runs a shell script through su. Only for explicitly chosen files.
+  Future<({bool ok, String stdout, String stderr})> runRootScript(
+    String path,
+  ) async =>
+      rootExec('sh "$path"');
 
   Future<String> readFile(String path) async {
     final v = await _channel.invokeMethod<String>('readFile', {'path': path});

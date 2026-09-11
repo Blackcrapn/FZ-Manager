@@ -1,6 +1,7 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import '../app.dart';
+import '../widgets.dart';
 import '../native_service.dart';
 
 class RootPage extends StatefulWidget {
@@ -67,18 +68,18 @@ class _RootPageState extends State<RootPage> {
       children: [
         Text('Root', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 12),
-        Card(
+        GlassCard(
           child: ListTile(
             leading: Icon(s.rootAvailable ? Icons.verified_user : Icons.shield_outlined,
                 color: s.rootAvailable ? Colors.green : null),
             title: Text(!s.rootChecked
-                ? tr(s, 'Статус не проверен', 'Status not checked')
+                ? tr(s, 'РЎС‚Р°С‚СѓСЃ РЅРµ РїСЂРѕРІРµСЂРµРЅ', 'Status not checked')
                 : s.rootAvailable
-                ? tr(s, 'Root подтверждён', 'Root verified')
-                : tr(s, 'Root не обнаружен', 'Root not found')),
+                ? tr(s, 'Root РїРѕРґС‚РІРµСЂР¶РґС‘РЅ', 'Root verified')
+                : tr(s, 'Root РЅРµ РѕР±РЅР°СЂСѓР¶РµРЅ', 'Root not found')),
             subtitle: Text(tr(
               s,
-              'Проверяется только безопасная команда su -c id.',
+              'РџСЂРѕРІРµСЂСЏРµС‚СЃСЏ С‚РѕР»СЊРєРѕ Р±РµР·РѕРїР°СЃРЅР°СЏ РєРѕРјР°РЅРґР° su -c id.',
               'Only the safe su -c id command is checked.',
             )),
             trailing: busy
@@ -88,23 +89,23 @@ class _RootPageState extends State<RootPage> {
                   )
                 : FilledButton(
                     onPressed: check,
-                    child: Text(tr(s, 'Проверить', 'Check')),
+                    child: Text(tr(s, 'РџСЂРѕРІРµСЂРёС‚СЊ', 'Check')),
                   ),
           ),
         ),
         const SizedBox(height: 14),
         if (s.rootAvailable) ...[
-          Text(tr(s, 'Системная файловая система', 'System filesystem'),
+          Text(tr(s, 'РЎРёСЃС‚РµРјРЅР°СЏ С„Р°Р№Р»РѕРІР°СЏ СЃРёСЃС‚РµРјР°', 'System filesystem'),
               style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 8),
-          Card(
+          GlassCard(
             child: ListTile(
               leading: IconButton(
                 onPressed: rootDir != '/' ? () => loadRoot(_parent(rootDir)) : null,
                 icon: const Icon(Icons.arrow_upward),
               ),
               title: Text(rootDir),
-              subtitle: Text(tr(s, 'Через su (только чтение для навигации)',
+              subtitle: Text(tr(s, 'Р§РµСЂРµР· su (С‚РѕР»СЊРєРѕ С‡С‚РµРЅРёРµ РґР»СЏ РЅР°РІРёРіР°С†РёРё)',
                   'Via su (read-only for navigation)')),
             ),
           ),
@@ -112,7 +113,7 @@ class _RootPageState extends State<RootPage> {
           if (rootDirLoading)
             const Center(child: CircularProgressIndicator())
           else if (rootError != null)
-            Card(
+            GlassCard(
               color: Theme.of(context).colorScheme.errorContainer,
               child: Padding(
                 padding: const EdgeInsets.all(12),
@@ -120,10 +121,10 @@ class _RootPageState extends State<RootPage> {
               ),
             )
           else
-            Card(
+            GlassCard(
               child: Column(
                 children: rootItems.isEmpty
-                    ? [ListTile(title: Text(tr(s, 'Пусто', 'Empty')))]
+                    ? [ListTile(title: Text(tr(s, 'РџСѓСЃС‚Рѕ', 'Empty')))]
                         : rootItems
                             .map((e) => ListTile(
                                   dense: true,
@@ -136,12 +137,12 @@ class _RootPageState extends State<RootPage> {
               ),
             ),
         ] else
-          Card(
+          GlassCard(
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(tr(
                 s,
-                'Root-доступ не обнаружен. Системные файлы недоступны без root.',
+                'Root-РґРѕСЃС‚СѓРї РЅРµ РѕР±РЅР°СЂСѓР¶РµРЅ. РЎРёСЃС‚РµРјРЅС‹Рµ С„Р°Р№Р»С‹ РЅРµРґРѕСЃС‚СѓРїРЅС‹ Р±РµР· root.',
                 'Root access not found. System files are unavailable without root.',
               )),
             ),
@@ -157,7 +158,7 @@ class _RootPageState extends State<RootPage> {
     try {
       final res = await NativeService.instance.rootExec('head -c 65536 "${e.path}"');
       content = res.ok
-          ? (res.stdout.isEmpty ? tr(s, '(пусто или бинарный файл)', '(empty or binary file)') : res.stdout)
+          ? (res.stdout.isEmpty ? tr(s, '(РїСѓСЃС‚Рѕ РёР»Рё Р±РёРЅР°СЂРЅС‹Р№ С„Р°Р№Р»)', '(empty or binary file)') : res.stdout)
           : res.stderr;
     } catch (err) {
       content = '$err';
@@ -176,7 +177,7 @@ class _RootPageState extends State<RootPage> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(x), child: Text(tr(s, 'Закрыть', 'Close'))),
+          TextButton(onPressed: () => Navigator.pop(x), child: Text(tr(s, 'Р—Р°РєСЂС‹С‚СЊ', 'Close'))),
         ],
       ),
     );
