@@ -34,7 +34,6 @@ class AiEngine {
   final Map<String, bool> permissions;
   final bool deleteAllowed;
   final ConfirmCallback onConfirm;
-  final List<ChatMessage> messages = [];
   final Map<String, AiTool> _tools = {};
   final List<String> _createdToolNames = [];
 
@@ -322,10 +321,13 @@ Rules:
 ''';
   }
 
-  /// Runs the agent loop for one user turn. Returns the final assistant reply.
-  Future<String> chat(String userText) async {
-    messages.add(ChatMessage('user', userText));
+  /// Runs the agent loop for one user turn with full chat context.
+  /// [context] must include all prior messages; the result contains the
+  /// updated context (append it to the chat) and the final reply.
+  Future<AiTurnResult> chat(String userText, List<ChatMessage> context) async {
+    final messages = [...context, ChatMessage('user', userText)];
     var reply = '';
+    final added = <ChatMessage>[ChatMessage('user', userText)];
     for (var i = 0; i < 12; i++) {
       final body = {
         'model': model,
@@ -339,7 +341,8 @@ Rules:
       final text = await _completion(body);
       final parsed = _parseJson(text);
       if (parsed == null) {
-        reply = 'Не удалось разобрать ответ модели.';
+        reply = 'Не удалось разобрать ответ модели. Ответ: ${text.length > 300 ? '${text.substring(0, 300)}…' : text}';
+        added.add(ChatMessage('assistant', reply));
         break;
       }
       final toolName = parsed['tool']?.toString();
@@ -347,20 +350,26 @@ Rules:
         final tool = _tools[toolName];
         if (tool == null) {
           reply = 'Инструмент $toolName не найден.';
-          messages.add(ChatMessage('assistant', 'tool $toolName missing'));
+          added.add(ChatMessage('assistant', reply));
           break;
         }
         final args = (parsed['args'] as Map?)?.cast<String, dynamic>() ?? {};
-        final result = await tool.handler(args);
+        String result;
+        try {
+          result = await tool.handler(args);
+        } catch (e) {
+          result = 'Tool error: $e';
+        }
         messages.add(ChatMessage('assistant', 'called $toolName'));
         messages.add(ChatMessage('tool', result));
+        added.add(ChatMessage('tool', '$toolName → $result'));
       } else {
         reply = parsed['reply']?.toString() ?? '';
-        messages.add(ChatMessage('assistant', reply));
+        added.add(ChatMessage('assistant', reply));
         break;
       }
     }
-    return reply;
+    return AiTurnResult(reply: reply, addedMessages: added);
   }
 
   Future<String> _completion(Map<String, dynamic> body) async {
@@ -401,4 +410,10 @@ Rules:
     }
     return null;
   }
+}
+
+class AiTurnResult {
+  final String reply;
+  final List<ChatMessage> addedMessages;
+  const AiTurnResult({required this.reply, required this.addedMessages});
 }

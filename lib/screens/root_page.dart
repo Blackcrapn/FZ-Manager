@@ -17,14 +17,81 @@ class _RootPageState extends State<RootPage> {
   String rootDir = '/';
   List<RootEntry> rootItems = [];
   String? rootError;
+  RootProbe? probe;
 
   Future<void> check() async {
     setState(() => busy = true);
-    final ok = await NativeService.instance.isRootAvailable();
+    final p = await NativeService.instance.rootProbe();
+    final ok = p?.rootGranted ?? false;
+    setState(() {
+      probe = p;
+      busy = false;
+    });
     widget.state.rootChecked = true;
     widget.state.rootAvailable = ok;
-    widget.state.log(ok ? 'Root verified' : 'Root not found');
-    if (mounted) setState(() => busy = false);
+    widget.state.log(ok
+        ? 'Root: ${p!.manager} (uid=0)'
+        : 'Root not confirmed (${p?.manager ?? 'no probe'})');
+    if (ok && rootItems.isEmpty) await loadRoot('/');
+  }
+
+  IconData _managerIcon() {
+    switch (probe?.iconKind() ?? 'none') {
+      case 'ok':
+        return Icons.verified_user_rounded;
+      case 'magisk':
+        return Icons.verified_user_rounded;
+      case 'ksu':
+        return Icons.terminal_rounded;
+      case 'apatch':
+        return Icons.build_circle_rounded;
+      case 'supersu':
+        return Icons.bolt_rounded;
+      case 'su_partial':
+        return Icons.help_outline_rounded;
+      default:
+        return Icons.shield_outlined;
+    }
+  }
+
+  Widget _probeDetails(RootProbe p, AppState s) {
+    final rows = <String, String>{};
+    if (p.rootGranted) {
+      rows[tr(s, 'Менеджер', 'Manager')] = p.manager +
+          (p.magiskVersion.isNotEmpty && p.hasMagisk ? ' ${p.magiskVersion}' : '');
+      if (p.canWrite) rows[tr(s, 'Запись', 'Write')] = tr(s, 'доступна', 'writable');
+      if (p.canRemount) rows[tr(s, 'Remount /', 'Remount /')] = 'rw';
+    } else if (p.suBinaries.isNotEmpty) {
+      rows[tr(s, 'Найдены su', 'su found')] = p.suBinaries.take(2).join(', ');
+    }
+    if (p.managerApps.isNotEmpty) {
+      rows[tr(s, 'Приложения', 'Apps')] = p.managerApps.join(', ');
+    }
+    if (p.kernel.isNotEmpty) rows[tr(s, 'Ядро', 'Kernel')] = p.kernel;
+    if (p.selinux.isNotEmpty) rows['SELinux'] = p.selinux;
+    if (rows.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: rows.entries
+          .map((e) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(e.key,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    Flexible(
+                      child: Text(
+                        e.value,
+                        textAlign: TextAlign.end,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                      ),
+                    ),
+                  ],
+                ),
+              ))
+          .toList(),
+    );
   }
 
   Future<void> loadRoot([String dir = '/']) async {
@@ -38,10 +105,7 @@ class _RootPageState extends State<RootPage> {
       if (!res.ok) {
         setState(() => rootError = res.stderr.isEmpty ? 'root error' : res.stderr);
       } else {
-        final lines = res.stdout
-            .split('\n')
-            .where((l) => l.trim().isNotEmpty)
-            .toList();
+        final lines = res.stdout.split('\n').where((l) => l.trim().isNotEmpty).toList();
         final entries = <RootEntry>[];
         for (final line in lines.skip(1)) {
           final parts = line.split(RegExp(r'\s+'));
@@ -60,97 +124,6 @@ class _RootPageState extends State<RootPage> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final s = widget.state;
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text('Root', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 12),
-        GlassCard(
-          child: ListTile(
-            leading: Icon(s.rootAvailable ? Icons.verified_user : Icons.shield_outlined,
-                color: s.rootAvailable ? Colors.green : null),
-            title: Text(!s.rootChecked
-                ? tr(s, 'РЎС‚Р°С‚СѓСЃ РЅРµ РїСЂРѕРІРµСЂРµРЅ', 'Status not checked')
-                : s.rootAvailable
-                ? tr(s, 'Root РїРѕРґС‚РІРµСЂР¶РґС‘РЅ', 'Root verified')
-                : tr(s, 'Root РЅРµ РѕР±РЅР°СЂСѓР¶РµРЅ', 'Root not found')),
-            subtitle: Text(tr(
-              s,
-              'РџСЂРѕРІРµСЂСЏРµС‚СЃСЏ С‚РѕР»СЊРєРѕ Р±РµР·РѕРїР°СЃРЅР°СЏ РєРѕРјР°РЅРґР° su -c id.',
-              'Only the safe su -c id command is checked.',
-            )),
-            trailing: busy
-                ? const SizedBox.square(
-                    dimension: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : FilledButton(
-                    onPressed: check,
-                    child: Text(tr(s, 'РџСЂРѕРІРµСЂРёС‚СЊ', 'Check')),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 14),
-        if (s.rootAvailable) ...[
-          Text(tr(s, 'РЎРёСЃС‚РµРјРЅР°СЏ С„Р°Р№Р»РѕРІР°СЏ СЃРёСЃС‚РµРјР°', 'System filesystem'),
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          GlassCard(
-            child: ListTile(
-              leading: IconButton(
-                onPressed: rootDir != '/' ? () => loadRoot(_parent(rootDir)) : null,
-                icon: const Icon(Icons.arrow_upward),
-              ),
-              title: Text(rootDir),
-              subtitle: Text(tr(s, 'Р§РµСЂРµР· su (С‚РѕР»СЊРєРѕ С‡С‚РµРЅРёРµ РґР»СЏ РЅР°РІРёРіР°С†РёРё)',
-                  'Via su (read-only for navigation)')),
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (rootDirLoading)
-            const Center(child: CircularProgressIndicator())
-          else if (rootError != null)
-            GlassCard(
-              color: Theme.of(context).colorScheme.errorContainer,
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Text(rootError!),
-              ),
-            )
-          else
-            GlassCard(
-              child: Column(
-                children: rootItems.isEmpty
-                    ? [ListTile(title: Text(tr(s, 'РџСѓСЃС‚Рѕ', 'Empty')))]
-                        : rootItems
-                            .map((e) => ListTile(
-                                  dense: true,
-                                  leading: Icon(e.isDir ? Icons.folder : Icons.insert_drive_file_outlined,
-                                      color: e.isDir ? Colors.amber : null),
-                                  title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                                  onTap: e.isDir ? () => loadRoot(e.path) : () => _viewFile(e),
-                                ))
-                            .toList(),
-              ),
-            ),
-        ] else
-          GlassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(tr(
-                s,
-                'Root-РґРѕСЃС‚СѓРї РЅРµ РѕР±РЅР°СЂСѓР¶РµРЅ. РЎРёСЃС‚РµРјРЅС‹Рµ С„Р°Р№Р»С‹ РЅРµРґРѕСЃС‚СѓРїРЅС‹ Р±РµР· root.',
-                'Root access not found. System files are unavailable without root.',
-              )),
-            ),
-          ),
-      ],
-    );
-  }
-
   Future<void> _viewFile(RootEntry e) async {
     final s = widget.state;
     setState(() => rootDirLoading = true);
@@ -158,7 +131,7 @@ class _RootPageState extends State<RootPage> {
     try {
       final res = await NativeService.instance.rootExec('head -c 65536 "${e.path}"');
       content = res.ok
-          ? (res.stdout.isEmpty ? tr(s, '(РїСѓСЃС‚Рѕ РёР»Рё Р±РёРЅР°СЂРЅС‹Р№ С„Р°Р№Р»)', '(empty or binary file)') : res.stdout)
+          ? (res.stdout.isEmpty ? tr(s, '(пусто или бинарный файл)', '(empty or binary file)') : res.stdout)
           : res.stderr;
     } catch (err) {
       content = '$err';
@@ -177,9 +150,121 @@ class _RootPageState extends State<RootPage> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(x), child: Text(tr(s, 'Р—Р°РєСЂС‹С‚СЊ', 'Close'))),
+          TextButton(onPressed: () => Navigator.pop(x), child: Text(tr(s, 'Закрыть', 'Close'))),
         ],
       ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.state;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        SectionHeader(
+          title: 'Root',
+          subtitle: tr(s, 'Системные разделы с правами суперпользователя', 'System partitions with superuser rights'),
+        ),
+        const SizedBox(height: 14),
+        GlassCard(
+          child: Column(
+            children: [
+              Icon(
+                _managerIcon(),
+                size: 64,
+                color: probe != null && probe!.rootGranted ? Colors.green : null,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                probe == null
+                    ? tr(s, 'Нажмите «Проверить Root» для глубокого анализа',
+                        'Tap "Check Root" for a deep analysis')
+                    : probe!.verdict(s.russian),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                tr(
+                  s,
+                  'Проверка: su-бинарники, uid=0, Magisk/KernelSU/APatch/SuperSU, SELinux, версия ядра, тест записи. Команды su не меняют систему.',
+                  'Probe checks: su binaries, uid=0, Magisk/KernelSU/APatch/SuperSU, SELinux, kernel version, write test. su commands do not modify the system.',
+                ),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              if (probe != null) _probeDetails(probe!, s),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: busy ? null : check,
+                icon: busy
+                    ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.security_rounded),
+                label: Text(tr(s, 'Проверить Root', 'Check Root')),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        if (s.rootAvailable) ...[
+          SectionHeader(title: tr(s, 'Системная файловая система', 'System filesystem')),
+          const SizedBox(height: 10),
+          GlassCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                ListTile(
+                  leading: IconButton(
+                    onPressed: rootDir != '/' ? () => loadRoot(_parent(rootDir)) : null,
+                    icon: const Icon(Icons.arrow_upward),
+                  ),
+                  title: Text(rootDir, style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.w600)),
+                  subtitle: Text(tr(s, 'Через su (навигация и чтение)', 'Via su (navigation and reading)')),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.refresh_rounded),
+                    onPressed: () => loadRoot(rootDir),
+                  ),
+                ),
+                const Divider(height: 1),
+                if (rootDirLoading)
+                  const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (rootError != null)
+                  Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Text(rootError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  )
+                else if (rootItems.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Text(tr(s, 'Пусто или нет доступа', 'Empty or no access')),
+                  )
+                else
+                  ...rootItems.map((e) => ListTile(
+                        dense: true,
+                        leading: Icon(e.isDir ? Icons.folder_rounded : Icons.insert_drive_file_outlined,
+                            color: e.isDir ? Colors.amber : null),
+                        title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        onTap: e.isDir ? () => loadRoot(e.path) : () => _viewFile(e),
+                      )),
+              ],
+            ),
+          ),
+        ] else
+          GlassCard(
+            child: Text(
+              tr(s,
+                  'Root-доступ не обнаружен. Системные файлы недоступны без root — '
+                  'это нормально: всё остальное работает.',
+                  'Root access not found. System files are unavailable without '
+                  'root — that is fine: everything else works.'),
+            ),
+          ),
+      ],
     );
   }
 

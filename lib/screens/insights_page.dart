@@ -20,74 +20,79 @@ class _InsightsPageState extends State<InsightsPage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text(tr(s, 'РћР±Р·РѕСЂ С…СЂР°РЅРёР»РёС‰Р°', 'Storage insights'),
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold)),
+        SectionHeader(
+          title: tr(s, 'Обзор хранилища', 'Storage insights'),
+          subtitle: tr(s, 'Здоровье хранилища одним экраном', 'Storage health at a glance'),
+        ),
         const SizedBox(height: 16),
         Wrap(
           spacing: 12,
           runSpacing: 12,
           children: [
-            _card(context, Icons.pie_chart_outline,
-                tr(s, 'РђРЅР°Р»РёР· РјРµСЃС‚Р°', 'Space analysis'),
-                tr(s, 'РљР°С‚РµРіРѕСЂРёРё Рё СЂР°Р·РјРµСЂС‹ РєР°С‚Р°Р»РѕРіРѕРІ', 'Categories and folder sizes'),
+            _card(context, Icons.pie_chart_outline_rounded,
+                tr(s, 'Анализ места', 'Space analysis'),
+                tr(s, 'Категории и размеры каталогов', 'Categories and folder sizes'),
                 onTap: () => _analyze(s)),
-            _card(context, Icons.copy_all_outlined,
-                tr(s, 'Р”СѓР±Р»РёРєР°С‚С‹', 'Duplicates'),
-                tr(s, 'РЎРєР°РЅРёСЂРѕРІР°РЅРёРµ РїРѕ СЂР°Р·РјРµСЂСѓ Рё С…СЌС€Сѓ', 'Size and hash scanning'),
+            _card(context, Icons.copy_all_rounded,
+                tr(s, 'Дубликаты', 'Duplicates'),
+                tr(s, 'Сканирование по размеру и хэшу', 'Size and hash scanning'),
                 onTap: () => _scanDuplicates(s)),
-            _card(context, Icons.data_usage,
-                tr(s, 'Р‘РѕР»СЊС€РёРµ С„Р°Р№Р»С‹', 'Large files'),
-                tr(s, 'РќР°Р№С‚Рё СЃР°РјС‹Рµ РѕР±СЉС‘РјРЅС‹Рµ СЌР»РµРјРµРЅС‚С‹', 'Find largest items'),
+            _card(context, Icons.data_usage_rounded,
+                tr(s, 'Большие файлы', 'Large files'),
+                tr(s, 'Найти самые объёмные элементы', 'Find largest items'),
                 onTap: () => _scanLarge(s)),
-            _card(context, Icons.history,
-                tr(s, 'РќРµРґР°РІРЅРёРµ', 'Recent'), '${s.recent.length}',
-                onTap: () => _paths(s.recent.take(15).toList())),
-            _card(context, Icons.delete_sweep_outlined,
-                tr(s, 'РљРѕСЂР·РёРЅР°', 'Trash'), '.fz_trash',
+            _card(context, Icons.history_rounded,
+                tr(s, 'Недавние', 'Recent'), '${s.recent.length}',
+                onTap: () => _paths(tr(s, 'Недавние папки', 'Recent folders'), s.recent.take(15).toList())),
+            _card(context, Icons.delete_sweep_rounded,
+                tr(s, 'Корзина', 'Trash'), '.fz_trash',
                 onTap: () => _trash(s)),
-            _card(context, Icons.star,
-                tr(s, 'Р—Р°РєР»Р°РґРєРё', 'Bookmarks'), '${s.bookmarks.length}',
-                onTap: () => _paths(s.bookmarks.toList())),
+            _card(context, Icons.star_rounded,
+                tr(s, 'Закладки', 'Bookmarks'), '${s.bookmarks.length}',
+                onTap: () => _paths(tr(s, 'Закладки путей', 'Path bookmarks'), s.bookmarks.toList())),
           ],
         ),
         const SizedBox(height: 20),
-        if (largeFiles.isNotEmpty) ...[
-          Text(tr(s, 'Р‘РѕР»СЊС€РёРµ С„Р°Р№Р»С‹', 'Large files'),
-              style: Theme.of(context).textTheme.titleLarge),
-          ...largeFiles.map((e) => ListTile(
-              leading: const Icon(Icons.insert_drive_file_outlined),
-              title: Text(e.name),
-              subtitle: Text(formatBytes(e.size)))),
+        if (scanning)
+          const Center(child: CircularProgressIndicator())
+        else if (largeFiles.isNotEmpty) ...[
+          SectionHeader(title: tr(s, 'Большие файлы', 'Large files')),
+          const SizedBox(height: 10),
+          GlassCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: largeFiles
+                  .map((e) => ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.insert_drive_file_outlined),
+                        title: Text(e.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(e.path, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+                        trailing: Text(formatBytes(e.size), style: const TextStyle(fontWeight: FontWeight.w700)),
+                      ))
+                  .toList(),
+            ),
+          ),
         ],
       ],
     );
   }
 
-  Widget _card(BuildContext c, IconData i, String t, String sub, {VoidCallback? onTap}) =>
-      SizedBox(
+  Widget _card(BuildContext c, IconData i, String t, String sub, {VoidCallback? onTap}) => SizedBox(
         width: 260,
         height: 145,
         child: GlassCard(
+          padding: const EdgeInsets.all(16),
           child: InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(i),
-                  const Spacer(),
-                  Text(t, style: Theme.of(c)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-                  Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(i, size: 28),
+                const Spacer(),
+                Text(t, style: Theme.of(c).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                Text(sub, maxLines: 2, overflow: TextOverflow.ellipsis),
+              ],
             ),
           ),
         ),
@@ -97,27 +102,27 @@ class _InsightsPageState extends State<InsightsPage> {
     showDialog(
       context: context,
       builder: (x) => AlertDialog(
-        title: Text(tr(s, 'РђРЅР°Р»РёР· РјРµСЃС‚Р°', 'Space analysis')),
+        title: Text(tr(s, 'Анализ места', 'Space analysis')),
         content: Text(tr(
-          s,
-          'РЎРєР°РЅРёСЂРѕРІР°РЅРёРµ РїРѕРєР°Р¶РµС‚ СЂР°Р·РјРµСЂС‹ РїР°РїРѕРє РІ С‚РµРєСѓС‰РµРј С…СЂР°РЅРёР»РёС‰Рµ. '
-              'Р’ СЌС‚РѕРј MVP РґРѕСЃС‚СѓРїРµРЅ РєР°СЂРєР°СЃ С„СѓРЅРєС†РёРё.',
-          'Scanning will show folder sizes in the current storage. '
-              'In this MVP the function scaffold is available.',
-        )),
+            s,
+            'Сканирование покажет размеры папок в текущем хранилище. '
+            'В этом выпуске доступен каркас функции.',
+            'Scanning will show folder sizes in the current storage. '
+            'In this release the function scaffold is available.')),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(x),
-              child: Text(tr(s, 'РћРљ', 'OK'))),
+          TextButton(onPressed: () => Navigator.pop(x), child: Text(tr(s, 'ОК', 'OK'))),
         ],
       ),
     );
   }
 
   Future<void> _scanDuplicates(AppState s) async {
-    _snack(tr(s, 'РЎРєР°РЅРµСЂ РґСѓР±Р»РёРєР°С‚РѕРІ вЂ” РєР°СЂРєР°СЃ', 'Duplicates scanner вЂ” scaffold'));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(tr(s, 'Сканер дубликатов — каркас', 'Duplicates scanner — scaffold'))));
   }
 
   Future<void> _scanLarge(AppState s) async {
+    final messenger = ScaffoldMessenger.of(context);
     setState(() {
       scanning = true;
       largeFiles = [];
@@ -143,12 +148,17 @@ class _InsightsPageState extends State<InsightsPage> {
         scanning = false;
       });
     }
+    if (found.isEmpty) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(tr(s, 'Файлов больше 50 МБ не найдено', 'No files above 50 MB found'))));
+    }
   }
 
   Future<void> _trash(AppState s) async {
     final trash = Directory('${s.path}${Platform.pathSeparator}.fz_trash');
     if (!await trash.exists()) {
-      _snack(tr(s, 'РљРѕСЂР·РёРЅР° РїСѓСЃС‚Р°', 'Trash is empty'));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr(s, 'Корзина пуста', 'Trash is empty'))));
       return;
     }
     final entries = <FileSystemEntity>[];
@@ -159,38 +169,32 @@ class _InsightsPageState extends State<InsightsPage> {
     showDialog(
       context: context,
       builder: (x) => AlertDialog(
-        title: Text(tr(s, 'РљРѕСЂР·РёРЅР°', 'Trash')),
+        title: Text(tr(s, 'Корзина', 'Trash')),
         content: SizedBox(
           width: 500,
           child: entries.isEmpty
-              ? Text(tr(s, 'РљРѕСЂР·РёРЅР° РїСѓСЃС‚Р°', 'Trash is empty'))
+              ? Text(tr(s, 'Корзина пуста', 'Trash is empty'))
               : ListView(
                   shrinkWrap: true,
                   children: entries
                       .map((e) => ListTile(
-                            leading: Icon(e is Directory
-                                ? Icons.folder
-                                : Icons.insert_drive_file_outlined),
-                            title: Text(e.path.split(Platform.pathSeparator).last),
+                            leading: Icon(e is Directory ? Icons.folder_rounded : Icons.insert_drive_file_outlined),
+                            title: Text(e.path.split(Platform.pathSeparator).last,
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
                             trailing: IconButton(
-                              icon: const Icon(Icons.restore),
-                              tooltip: tr(s, 'Р’РѕСЃСЃС‚Р°РЅРѕРІРёС‚СЊ', 'Restore'),
+                              icon: const Icon(Icons.restore_rounded),
+                              tooltip: tr(s, 'Восстановить', 'Restore'),
                               onPressed: () async {
-                                final name = e.path
-                                    .split(Platform.pathSeparator)
-                                    .last;
-                                final cleaned = name.contains('_')
-                                    ? name.substring(name.indexOf('_') + 1)
-                                    : name;
-                                final target =
-                                    '${s.path}${Platform.pathSeparator}$cleaned';
+                                final name = e.path.split(Platform.pathSeparator).last;
+                                final cleaned = name.contains('_') ? name.substring(name.indexOf('_') + 1) : name;
+                                final target = '${s.path}${Platform.pathSeparator}$cleaned';
                                 try {
                                   if (e is Directory) {
                                     await Directory(e.path).rename(target);
                                   } else {
                                     await File(e.path).rename(target);
                                   }
-                                  s.log('${tr(s, 'Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРѕ', 'Restored')}: $cleaned');
+                                  s.log('${tr(s, 'Восстановлено', 'Restored')}: $cleaned');
                                 } catch (err) {
                                   _snack(err.toString());
                                 }
@@ -203,30 +207,27 @@ class _InsightsPageState extends State<InsightsPage> {
                 ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(x),
-              child: Text(tr(s, 'Р—Р°РєСЂС‹С‚СЊ', 'Close'))),
+          TextButton(onPressed: () => Navigator.pop(x), child: Text(tr(s, 'Закрыть', 'Close'))),
         ],
       ),
     );
   }
 
-  void _paths(List<String> p) {
+  void _paths(String title, List<String> p) {
     if (p.isEmpty) {
-      _snack(tr(widget.state, 'РџРѕРєР° РїСѓСЃС‚Рѕ', 'Empty for now'));
+      _snack(tr(widget.state, 'Пока пусто', 'Empty for now'));
       return;
     }
     showDialog(
       context: context,
       builder: (x) => AlertDialog(
-        title: Text(tr(widget.state, 'РџСѓС‚Рё', 'Paths')),
+        title: Text(title),
         content: SizedBox(
           width: 500,
-          child: ListView(shrinkWrap: true,
-              children: p.map((v) => ListTile(title: Text(v))).toList()),
+          child: ListView(shrinkWrap: true, children: p.map((v) => ListTile(title: Text(v))).toList()),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(x),
-              child: Text(tr(widget.state, 'Р—Р°РєСЂС‹С‚СЊ', 'Close'))),
+          TextButton(onPressed: () => Navigator.pop(x), child: Text(tr(widget.state, 'Закрыть', 'Close'))),
         ],
       ),
     );

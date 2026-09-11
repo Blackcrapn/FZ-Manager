@@ -33,54 +33,59 @@ jobs:
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - run: flutter test
+
+      - name: Resolve version
+        id: ver
+        run: echo "tag=v$(grep -m1 '^version:' pubspec.yaml | sed 's/version: //' | cut -d+ -f1)" >> "$GITHUB_OUTPUT"
+
       - run: flutter build apk --release
 
-      - name: Verify APK is properly signed
+      - name: Verify and rename the APK
         run: |
           APK=build/app/outputs/flutter-apk/app-release.apk
           SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          BT="$SDK/build-tools"
-          APKSIGNER="$(ls -1 "$BT"/*/apksigner 2>/dev/null | sort -V | tail -1)"
+          APKSIGNER="$(ls -1 "$SDK/build-tools"/*/apksigner 2>/dev/null | sort -V | tail -1)"
           "$APKSIGNER" verify --print-certs "$APK" || { echo "::error::APK signature verification FAILED - package would be invalid"; exit 1; }
           echo "APK signature verified OK"
-
-      - name: Compute SHA256
-        run: |
-          APK=build/app/outputs/flutter-apk/app-release.apk
-          sha256sum "$APK" | tee app-release.apk.sha256
+          NAME="FZ Manager ${{ steps.ver.outputs.tag }}.apk"
+          cp "$APK" "FZ Manager ${{ steps.ver.outputs.tag }}.apk"
+          sha256sum "$NAME" > "FZ Manager ${{ steps.ver.outputs.tag }}.sha256"
+          echo "apk_name=$NAME" >> "$GITHUB_OUTPUT"
+        id: apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: fz-manager-apk
+          name: FZ-Manager-apk
           path: |
-            build/app/outputs/flutter-apk/app-release.apk
-            app-release.apk.sha256
+            FZ Manager *.apk
+            FZ Manager *.sha256
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.0
-          name: FZ Manager v1.2.0
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: FZ Manager ${{ steps.ver.outputs.tag }}
           body: |
-            FZ Manager — файловый менеджер нового поколения.
+            FZ Manager — файловый менеджер нового поколения для Android (Flutter + Root + ИИ).
 
-            ### Что нового в v1.2.0 — полный редизайн
-            - Приложение само запрашивает разрешения: страница «Все файлы» открывается из приложения (онбординг и настройки)
-            - Полный редизайн: GlassCard, градиентные заголовки, hero-арт, пустые состояния, новые иконки типов файлов
-            - Файлы: просмотр изображений (зум), текстовых файлов; «Открыть как Root» для недоступных файлов; запуск .sh через Root с подтверждением и выводом
-            - Физзи полностью переписан: 15+ тем, FAQ, пошаговые гайды, советы, smalltalk — сотни строк знаний
-            - Новые ассеты: аватар Физзи 1024px, hero-баннеры, empty-state арт
-            - Настройки: акцентные цвета с выбором, плитки в стиле glass, страница разрешений
+            ### Что нового
+            - **ИИ Мозг: полноценные чаты** — отдельные чаты с историей, контекстом (последние 40 реплик в запросе), локальным сохранением, удалением
+            - **API-ключ** корректно сохраняется в Android Keystore и читается при запросах (исправлена ошибка 401 «ключ не сохраняется»)
+            - **Физзи 2.0** — контекст диалога («подробнее», «как это включить»), онлайн-режим через вашего провайдера с RAG по базе знаний, системный промпт (редактируется), кнопка скачивания **мини-модели SmolLM2-135M (≈130 МБ)** для телефонов
+            - **Раздел «Ядро»** рядом с файлами — uname, cpuinfo, meminfo, dmesg, mounts + просмотр ядровых файлов через root
+            - **Liquid Glass докбар** — стеклянный док с блюром, анимированным индикатором и подписями
+            - **Музыкальный островок** — live-уведомление «♪ играет музыку» (AudioManager) для устройств с dynamic island; запрос разрешения на уведомления из приложения
+            - **Приложение само запрашивает разрешения** (медиа, уведомления, страница «Все файлы»)
+            - Исправлены «непонятные символы» в разделах Обзор и Root; полный редизайн интерфейса
 
-            ### Основное
-            - Умный поиск путей с автодополнением и автоисправлением (/data/lokal → /data/local)
-            - Root-навигация по системным файлам (su)
-            - ИИ Мозг: реальный агент, кастомный провайдер, инструменты + create_tool
-            - Персистентность, корзина с восстановлением, кастомизация
+            ### Файл
+            - `FZ Manager vX.Y.Z.apk` — подписанный релизный APK (v1+v2+v3 схемы, верифицирован apksigner в CI)
+            - `.sha256` — контрольная сумма
 
-            SHA256: см. файл app-release.apk.sha256
+            ### Установить
+            Скачайте APK → разрешите «неизвестные источники» → установите. Для root-функций нужен root (Magisk/Superuser).
           files: |
-            build/app/outputs/flutter-apk/app-release.apk
-            app-release.apk.sha256
+            FZ Manager *.apk
+            FZ Manager *.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

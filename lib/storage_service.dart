@@ -82,6 +82,28 @@ class StorageService {
   bool get showHidden => _p.getBool(_showHidden) ?? false;
   set showHidden(bool v) => _p.setBool(_showHidden, v);
 
+  // Fizzy
+  bool get fizzyOnline => _p.getBool('fizzyOnline') ?? false;
+  set fizzyOnline(bool v) => _p.setBool('fizzyOnline', v);
+  bool get musicIsland => _p.getBool('musicIsland') ?? false;
+  set musicIsland(bool v) => _p.setBool('musicIsland', v);
+  String get fizzyPrompt => _p.getString('fizzyPrompt') ??
+      'You are Fizzy, the friendly built-in assistant of FZ Manager, an Android file '
+          'manager with a Smart Path search (auto-corrects typos like /data/lokal -> '
+          '/data/local), a safe Root section (kernel/system files via su, read-only + '
+          '.sh run with confirmation), an AI Brain agent (tools: list, read, write, '
+          'write_append, search, copy, move, rename, delete with per-action '
+          'confirmations, configure, create_tool), Trash with restore, and deep '
+          'customization (themes, accent colors, density, hidden files, RU/EN). '
+          'Answer in the user language. Never invent files you did not read. Be '
+          'concise and concrete.';
+  set fizzyPrompt(String v) => _p.setString('fizzyPrompt', v);
+  String get modelUrl => _p.getString('modelUrl') ??
+      'https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/main/SmolLM2-135M-Instruct-Q4_K_M.gguf';
+  set modelUrl(String v) => _p.setString('modelUrl', v);
+  String get modelName => _p.getString('modelName') ?? 'SmolLM2-135M-Instruct-Q4_K_M (GGUF)';
+  set modelName(String v) => _p.setString('modelName', v);
+
   Set<String> get favorites => (_p.getStringList(_favorites) ?? []).toSet();
   set favorites(Set<String> v) => _p.setStringList(_favorites, v.toList());
 

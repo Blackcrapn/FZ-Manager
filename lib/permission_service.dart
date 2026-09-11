@@ -3,6 +3,12 @@ import 'native_service.dart';
 
 /// Requests the permissions FZ Manager needs, from inside the app.
 class PermissionService {
+  /// Android 13+ runtime notification permission.
+  static Future<bool> requestNotifications() async {
+    final status = await Permission.notification.request();
+    return status.isGranted;
+  }
+
   static Future<bool> requestMedia() async {
     final statuses = await [
       Permission.photos,

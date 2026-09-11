@@ -171,6 +171,27 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool get fizzyOnline => store.fizzyOnline;
+  set fizzyOnline(bool v) {
+    store.fizzyOnline = v;
+    notifyListeners();
+  }
+
+  bool get musicIsland => store.musicIsland;
+  set musicIsland(bool v) {
+    store.musicIsland = v;
+    notifyListeners();
+  }
+
+  String get fizzyPrompt => store.fizzyPrompt;
+  set fizzyPrompt(String v) {
+    store.fizzyPrompt = v;
+    notifyListeners();
+  }
+
+  String get modelUrl => store.modelUrl;
+  String get modelName => store.modelName;
+
   Set<String> get favorites => _favorites;
   set favorites(Set<String> v) {
     _favorites = v;
