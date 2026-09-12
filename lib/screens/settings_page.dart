@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import '../app.dart';
 import '../widgets.dart';
 import '../permission_service.dart';
+import '../native_service.dart';
+import '../hidden_prompts.dart';
+import 'root_page.dart';
 
 const _accents = <String, Color>{
   '465cff': Color(0xff465cff),
@@ -20,6 +23,8 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  bool showPrompts = false;
+
   @override
   Widget build(BuildContext context) {
     final s = widget.state;
@@ -158,6 +163,100 @@ class _SettingsPageState extends State<SettingsPage> {
                 divisions: 6,
                 label: s.density.toStringAsFixed(1),
                 onChanged: (v) => s.density = v),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        GlassCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.admin_panel_settings_rounded),
+                title: Text(tr(s, 'Root и безопасность', 'Root and safety')),
+                subtitle: Text(tr(s, 'Проверка прав, су-бинарники, менеджер', 'Permissions, su binaries, manager')),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.verified_user_outlined),
+                title: Text(tr(s, 'Статус root: ${s.rootAvailable ? tr(s, "подтверждён", "verified") : (s.rootChecked ? tr(s, "недоступен", "unavailable") : tr(s, "не проверен", "not checked"))}',
+                    'Root status: ${s.rootAvailable ? "verified" : (s.rootChecked ? "unavailable" : "not checked")}')),
+                subtitle: Text(tr(
+                  s,
+                  'Откройте раздел Root (Ещё → Root) для глубокой проверки: Magisk / KernelSU / APatch, SELinux, тест записи.',
+                  'Open the Root section (More → Root) for a deep probe: Magisk / KernelSU / APatch, SELinux, write test.')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () async {
+                  final p = await NativeService.instance.rootProbe();
+                  if (p != null) {
+                    s.rootChecked = true;
+                    s.rootAvailable = p.rootGranted;
+                    s.log('root probe: ${p.manager} granted=${p.rootGranted}');
+                  }
+                  if (!mounted) return;
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => Scaffold(
+                          appBar: AppBar(title: const Text('Root')),
+                          body: RootPage(state: s))));
+                },
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.privacy_tip_outlined, color: Theme.of(context).colorScheme.primary),
+                  const SizedBox(width: 10),
+                  Text(tr(s, 'Продвинутые', 'Advanced'),
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                secondary: const Icon(Icons.code_off_rounded),
+                title: Text(tr(s, 'Показывать системные промпты', 'Show system prompts')),
+                subtitle: Text(tr(s,
+                    'Скрытые по умолчанию: промпты ИИ Мозга и Физзи',
+                    'Hidden by default: AI Brain and Fizzy prompts')),
+                value: showPrompts,
+                onChanged: (v) => setState(() => showPrompts = v),
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                child: showPrompts
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 6),
+                          Text(tr(s, 'Промпт ИИ Мозга:', 'AI Brain prompt:'),
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          SelectableText(
+                            kAiBrainPrompt.length > 320 ? '${kAiBrainPrompt.substring(0, 320)}…' : kAiBrainPrompt,
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(tr(s, 'Промпт Физзи:', 'Fizzy prompt:'),
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          SelectableText(
+                            kFizzySystemPrompt.length > 320 ? '${kFizzySystemPrompt.substring(0, 320)}…' : kFizzySystemPrompt,
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(tr(s, 'Промпт локальной модели:', 'Local model prompt:'),
+                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          SelectableText(kFizzyLocalPrompt,
+                              style: const TextStyle(fontFamily: 'monospace', fontSize: 10)),
+                        ],
+                      )
+                    : const SizedBox(width: double.infinity),
+              ),
             ],
           ),
         ),

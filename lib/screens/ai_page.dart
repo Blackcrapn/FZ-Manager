@@ -166,12 +166,12 @@ class _AiPageState extends State<AiPage> {
         deleteAllowed: s.aiDelete,
         onConfirm: _confirmAction,
       );
-      final context = current.messages
+      final priorContext = current.messages
           .where((m) => m.role == 'user' || m.role == 'assistant')
           .take(40)
           .map((m) => ChatMessage(m.role, m.content))
           .toList();
-      final result = await engine.chat(text, context);
+      final result = await engine.chat(text, priorContext);
       for (final m in result.addedMessages) {
         if (m.role == 'tool') {
           _addMessage(m.content, fromUser: false, isTool: true);
@@ -445,13 +445,21 @@ class _AiPageState extends State<AiPage> {
           ),
         ),
         const SizedBox(height: 12),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: save,
-            icon: const Icon(Icons.save_outlined),
-            label: Text(tr(s, 'Сохранить', 'Save')),
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton.icon(
+              onPressed: _testConnection,
+              icon: const Icon(Icons.wifi_tethering_rounded),
+              label: Text(tr(s, 'Проверить связь', 'Test connection')),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: save,
+              icon: const Icon(Icons.save_outlined),
+              label: Text(tr(s, 'Сохранить', 'Save')),
+            ),
+          ],
         ),
       ],
     ),
@@ -502,6 +510,38 @@ class _AiPageState extends State<AiPage> {
       ],
     ),
   );
+
+  /// Quick provider diagnostics: one minimal request, human verdict.
+  Future<void> _testConnection() async {
+    final s = widget.state;
+    final base = url.text.trim().isNotEmpty ? url.text.trim() : s.provider;
+    final mdl = model.text.trim().isNotEmpty ? model.text.trim() : s.model;
+    if (base.isEmpty || mdl.isEmpty) {
+      _snackMsg(tr(s, 'Заполните URL и модель', 'Fill URL and model'));
+      return;
+    }
+    _snackMsg(tr(s, 'Проверяю связь…', 'Checking connection…'));
+    final engine = AiEngine(
+      baseUrl: base,
+      model: mdl,
+      apiKey: await NativeService.instance.getApiKey() ?? '',
+      permissions: {'read': true},
+      deleteAllowed: false,
+      onConfirm: (_, __) async => false,
+    );
+    try {
+      await engine.chat('ping', const []);
+      _snackMsg(tr(s, 'Связь в порядке ✓', 'Connection OK ✓'));
+    } catch (e) {
+      final msg = e is AiProviderException ? e.human(s.russian) : '$e';
+      _snackMsg(msg);
+    }
+  }
+
+  void _snackMsg(String m) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+  }
 
   String _tool(AppState s, String k) => {
     'read': tr(s, 'Чтение файлов', 'Read files'),

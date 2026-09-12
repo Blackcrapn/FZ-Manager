@@ -70,6 +70,19 @@ class NativeService {
     }
   }
 
+  /// Device hardware info for the "Recommended local AI" system.
+  Future<DeviceInfo?> deviceInfo() async {
+    try {
+      final map = await _channel
+          .invokeMethod<Map<dynamic, dynamic>>('deviceInfo')
+          .timeout(const Duration(seconds: 10));
+      if (map == null) return null;
+      return DeviceInfo(map.cast<String, dynamic>());
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<({bool ok, String stdout, String stderr})> rootExec(
     String command,
   ) async {
@@ -116,6 +129,7 @@ class RootProbe {
   RootProbe(this.data);
 
   bool get rootGranted => data['rootGranted'] == true;
+  bool get suFoundButDenied => data['suFoundButDenied'] == true;
   String get manager => data['manager']?.toString() ?? 'None';
   bool get hasMagisk => data['hasMagisk'] == true;
   bool get hasKernelSU => data['hasKernelSU'] == true;
@@ -148,11 +162,11 @@ class RootProbe {
           ? 'Root подтверждён: $mgr$w'
           : 'Root verified: $mgr$w';
     }
-    if (hasMagisk || hasKernelSU || hasAPatch || hasSuperSU ||
-        managerApps.isNotEmpty || suBinaries.isNotEmpty) {
+    if (suFoundButDenied || hasMagisk || hasKernelSU || hasAPatch ||
+        hasSuperSU || managerApps.isNotEmpty || suBinaries.isNotEmpty) {
       return russian
-          ? 'Root-менеджер найден ($manager), но su не дал uid=0 — выдайте разрешение в приложении менеджера'
-          : 'Root manager found ($manager), but su did not grant uid=0 — approve the request in its app';
+          ? 'Root-менеджер найден ($manager), но su не дал uid=0 — выдайте разрешение в его приложении (Magisk/KernelSU)'
+          : 'Root manager found ($manager), but su did not grant uid=0 — approve access in its app (Magisk/KernelSU)';
     }
     return russian ? 'Root не обнаружен' : 'Root not found';
   }
@@ -163,7 +177,44 @@ class RootProbe {
     if (hasKernelSU) return 'ksu';
     if (hasAPatch) return 'apatch';
     if (hasSuperSU || managerApps.contains('SuperSU')) return 'supersu';
-    if (suBinaries.isNotEmpty) return 'su_partial';
+    if (suBinaries.isNotEmpty || suFoundButDenied) return 'su_partial';
     return 'none';
+  }
+}
+
+/// Device hardware info for recommending on-device AI models.
+class DeviceInfo {
+  final int ramTotalBytes;
+  final int ramAvailBytes;
+  final int cores;
+  final int maxFreqKHz;
+  final String cpuHardware;
+  final String manufacturer;
+  final String model;
+  final String board;
+  final String release;
+  final int sdkInt;
+
+  DeviceInfo(Map<String, dynamic> d)
+      : ramTotalBytes = (d['ramTotalBytes'] as num?)?.toInt() ?? 0,
+        ramAvailBytes = (d['ramAvailBytes'] as num?)?.toInt() ?? 0,
+        cores = (d['cores'] as num?)?.toInt() ?? 0,
+        maxFreqKHz = (d['maxFreqKHz'] as num?)?.toInt() ?? 0,
+        cpuHardware = d['cpuHardware']?.toString() ?? '',
+        manufacturer = d['manufacturer']?.toString() ?? '',
+        model = d['model']?.toString() ?? '',
+        board = d['board']?.toString() ?? '',
+        release = d['release']?.toString() ?? '',
+        sdkInt = (d['sdkInt'] as num?)?.toInt() ?? 0;
+
+  double get ramTotalGb => ramTotalBytes / 1073741824.0;
+  double get ramAvailGb => ramAvailBytes / 1073741824.0;
+  String get fullName => '$manufacturer $model'.trim();
+
+  /// Tier for recommendations: 0 = low, 1 = mid, 2 = high.
+  int get tier {
+    if (ramTotalGb >= 8 && cores >= 8 && maxFreqKHz >= 2200000) return 2;
+    if (ramTotalGb >= 4) return 1;
+    return 0;
   }
 }

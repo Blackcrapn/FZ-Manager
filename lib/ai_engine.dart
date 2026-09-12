@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'hidden_prompts.dart';
 
 typedef ToolHandler = Future<String> Function(Map<String, dynamic> args);
 
@@ -21,8 +22,21 @@ class AiTool {
 class ChatMessage {
   final String role;
   final String content;
-  ChatMessage(this.role, this.content);
-  Map<String, dynamic> toJson() => {'role': role, 'content': content};
+  final String? toolCallId;
+  ChatMessage(this.role, this.content, {this.toolCallId});
+  Map<String, dynamic> toJson() => {
+        'role': role,
+        'content': content,
+        if (role == 'tool' && toolCallId != null) 'tool_call_id': toolCallId,
+        if (role == 'assistant' && toolCallId != null)
+          'tool_calls': [
+            {
+              'id': toolCallId,
+              'type': 'function',
+              'function': {'name': 'tool', 'arguments': content}
+            }
+          ],
+      };
 }
 
 typedef ConfirmCallback = Future<bool> Function(String action, String detail);
@@ -303,50 +317,85 @@ class AiEngine {
       .toList();
 
   String _systemPrompt() {
-    final enabled = _tools.keys.where((k) => _perm(k) || k == 'list' || k == 'write' || k == 'write_append').toList();
-    return '''
-You are the AI Brain of FZ Manager, a powerful file-management agent.
-You can manipulate files using tools. Available tools: ${enabled.join(', ')}.
-
-Respond ONLY in JSON. Two response forms:
-1. To call a tool: {"tool":"name","args":{...}}
-2. To answer the user: {"reply":"your text answer"}
-
-Rules:
-- Only call tools that are enabled and safe.
-- Deleting is only allowed if the delete tool is enabled AND the user confirms each time.
-- For very large files, use write + write_append in multiple steps (write supports unlimited lines this way).
-- If the user wants a repeated workflow, define a custom tool with create_tool.
-- Never claim something was done unless a tool actually did it.
-''';
+    return kAiBrainPrompt;
   }
 
   /// Runs the agent loop for one user turn with full chat context.
   /// [context] must include all prior messages; the result contains the
   /// updated context (append it to the chat) and the final reply.
   Future<AiTurnResult> chat(String userText, List<ChatMessage> context) async {
+    _isRussian = RegExp(r'[а-яА-ЯёЁ]').hasMatch(userText);
     final messages = [...context, ChatMessage('user', userText)];
     var reply = '';
     final added = <ChatMessage>[ChatMessage('user', userText)];
+    // Whether the provider supports OpenAI-style native tool calling.
+    var toolsSupported = true;
+
     for (var i = 0; i < 12; i++) {
-      final body = {
+      final reqMessages = <Map<String, dynamic>>[
+        {'role': 'system', 'content': _systemPrompt()},
+        ...messages.map((m) => m.toJson()),
+      ];
+      final body = <String, dynamic>{
         'model': model,
-        'messages': [
-          {'role': 'system', 'content': _systemPrompt()},
-          ...messages.map((m) => m.toJson()),
-        ],
-        'tools': _toolSpecs(),
-        'tool_choice': 'auto',
+        'messages': reqMessages,
+        'temperature': 0.3,
+        'stream': false,
       };
-      final text = await _completion(body);
-      final parsed = _parseJson(text);
-      if (parsed == null) {
-        reply = 'Не удалось разобрать ответ модели. Ответ: ${text.length > 300 ? '${text.substring(0, 300)}…' : text}';
+      if (toolsSupported) {
+        body['tools'] = _toolSpecs();
+        body['tool_choice'] = 'auto';
+      }
+
+      AiCompletionResult comp;
+      try {
+        comp = await _completion(body);
+      } on AiProviderException catch (e) {
+        if (e.status == 400 && toolsSupported && reqMessages.length > 1) {
+          // Provider rejects the tools schema -> retry without tools once.
+          toolsSupported = false;
+          continue;
+        }
+        reply = e.human(_isRussian);
+        added.add(ChatMessage('assistant', reply));
+        break;
+      } catch (e) {
+        reply = 'Ошибка сети или провайдера: $e';
         added.add(ChatMessage('assistant', reply));
         break;
       }
-      final toolName = parsed['tool']?.toString();
-      if (toolName != null) {
+
+      // Native tool calls take priority when the provider supports them.
+      if (toolsSupported && comp.toolCalls.isNotEmpty) {
+        var executed = false;
+        for (final tc in comp.toolCalls) {
+          final tool = _tools[tc.name];
+          if (tool == null) {
+            messages.add(ChatMessage('tool', 'Unknown tool ${tc.name}',
+                toolCallId: tc.id));
+            continue;
+          }
+          final args = tc.argsJson;
+          String result;
+          try {
+            result = await tool.handler(args);
+          } catch (e) {
+            result = 'Tool error: $e';
+          }
+          messages.add(ChatMessage('assistant', 'called ${tc.name}',
+              toolCallId: tc.id));
+          messages.add(ChatMessage('tool', result, toolCallId: tc.id));
+          added.add(ChatMessage('tool', '${tc.name} → $result'));
+          executed = true;
+        }
+        if (executed) continue;
+      }
+
+      final text = comp.content;
+      final parsed = _parseJson(text);
+      if (parsed != null && parsed['tool'] != null) {
+        // Legacy inline {"tool": ...} protocol.
+        final toolName = parsed['tool'].toString();
         final tool = _tools[toolName];
         if (tool == null) {
           reply = 'Инструмент $toolName не найден.';
@@ -363,16 +412,26 @@ Rules:
         messages.add(ChatMessage('assistant', 'called $toolName'));
         messages.add(ChatMessage('tool', result));
         added.add(ChatMessage('tool', '$toolName → $result'));
-      } else {
-        reply = parsed['reply']?.toString() ?? '';
-        added.add(ChatMessage('assistant', reply));
-        break;
+        continue;
       }
+
+      if (parsed != null && parsed['reply'] != null) {
+        reply = parsed['reply'].toString();
+      } else {
+        reply = text.trim();
+      }
+      if (reply.isEmpty && parsed == null) {
+        reply = 'Модель вернула пустой ответ. Попробуйте уточнить задачу или сменить модель.';
+      }
+      added.add(ChatMessage('assistant', reply));
+      break;
     }
     return AiTurnResult(reply: reply, addedMessages: added);
   }
 
-  Future<String> _completion(Map<String, dynamic> body) async {
+  bool _isRussian = true;
+
+  Future<AiCompletionResult> _completion(Map<String, dynamic> body) async {
     final url = baseUrl.endsWith('/chat/completions')
         ? baseUrl
         : '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/chat/completions';
@@ -385,19 +444,51 @@ Rules:
           },
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 90));
+        .timeout(const Duration(seconds: 120));
+
     if (res.statusCode != 200) {
-      throw Exception('Provider error ${res.statusCode}: ${res.body}');
+      throw AiProviderException(res.statusCode, res.body);
     }
     final data = jsonDecode(res.body) as Map<String, dynamic>;
     final choices = data['choices'] as List;
-    if (choices.isEmpty) return '';
+    if (choices.isEmpty) {
+      return AiCompletionResult(content: '', toolCalls: const []);
+    }
     final msg = choices.first['message'] as Map<String, dynamic>;
-    return (msg['content'] as String?) ?? '';
+    var content = (msg['content'] as String?) ?? '';
+    if (content.isEmpty) {
+      // Some reasoning models emit content via 'reasoning_content' or a
+      // 'reasoning' field instead of 'content'.
+      content = (msg['reasoning_content'] as String?) ??
+          (msg['reasoning'] as String?) ??
+          '';
+    }
+    final toolCalls = <AiToolCall>[];
+    final rawCalls = msg['tool_calls'];
+    if (rawCalls is List) {
+      for (final c in rawCalls) {
+        final fn = (c as Map)['function'] as Map?;
+        if (fn == null) continue;
+        final args = fn['arguments'];
+        toolCalls.add(AiToolCall(
+          id: (c['id'] as String?) ?? 'call_${toolCalls.length}',
+          name: fn['name'] as String? ?? '',
+          argsRaw: args is String ? args : jsonEncode(args ?? {}),
+        ));
+      }
+    }
+    return AiCompletionResult(content: content, toolCalls: toolCalls);
   }
 
   Map<String, dynamic>? _parseJson(String text) {
     final t = text.trim();
+    // Strip markdown fences common in chat models.
+    final fenced = RegExp(r'```(?:json)?\s*([\s\S]*?)\s*```').firstMatch(t);
+    if (fenced != null) {
+      try {
+        return jsonDecode(fenced.group(1)!) as Map<String, dynamic>;
+      } catch (_) {}
+    }
     try {
       return jsonDecode(t) as Map<String, dynamic>;
     } catch (_) {}
@@ -410,6 +501,68 @@ Rules:
     }
     return null;
   }
+}
+
+class AiToolCall {
+  final String id;
+  final String name;
+  final String argsRaw;
+  const AiToolCall({required this.id, required this.name, required this.argsRaw});
+  Map<String, dynamic> get argsJson {
+    try {
+      final d = jsonDecode(argsRaw);
+      return d is Map ? d.cast<String, dynamic>() : {};
+    } catch (_) {
+      return {};
+    }
+  }
+}
+
+class AiCompletionResult {
+  final String content;
+  final List<AiToolCall> toolCalls;
+  const AiCompletionResult({required this.content, required this.toolCalls});
+}
+
+class AiProviderException implements Exception {
+  final int status;
+  final String body;
+  AiProviderException(this.status, this.body);
+
+  String human(bool ru) {
+    switch (status) {
+      case 401:
+        return ru
+            ? 'Ошибка 401: неверный или не сохранённый API-ключ. Откройте карточку «Ваш провайдер», вставьте ключ заново и нажмите «Сохранить» (поле очистится — ключ уже в Android Keystore).'
+            : 'Error 401: invalid or unsaved API key. Open the "Your provider" card, re-enter the key and tap "Save" (the field clears — the key is now in Android Keystore).';
+      case 403:
+        return ru
+            ? 'Ошибка 403: ключ не имеет доступа к этой модели.'
+            : 'Error 403: the key cannot access this model.';
+      case 404:
+        return ru
+            ? 'Ошибка 404: неверный URL или модель не найдена. Проверьте базовый URL и точное имя модели.'
+            : 'Error 404: wrong URL or model not found. Check the base URL and the exact model name.';
+      case 429:
+        return ru
+            ? 'Ошибка 429: слишком много запросов или закончились кредиты. Подождите или пополните баланс.'
+            : 'Error 429: rate limited or out of credits. Wait or top up.';
+      case 400:
+        return ru
+            ? 'Ошибка 400: провайдер не понял запрос (URL, модель или параметры). Проверьте настройки.'
+            : 'Error 400: the provider rejected the request (URL, model or params). Check settings.';
+      default:
+        if (status >= 500) {
+          return ru
+              ? 'Ошибка провайдера $status: временный сбой на их стороне. Попробуйте позже.'
+              : 'Provider error $status: temporary outage on their side. Try again later.';
+        }
+        return '$status: ${body.length > 200 ? '${body.substring(0, 200)}…' : body}';
+    }
+  }
+
+  @override
+  String toString() => 'AiProviderException($status)';
 }
 
 class AiTurnResult {

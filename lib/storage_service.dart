@@ -104,6 +104,24 @@ class StorageService {
   String get modelName => _p.getString('modelName') ?? 'SmolLM2-135M-Instruct-Q4_K_M (GGUF)';
   set modelName(String v) => _p.setString('modelName', v);
 
+  /// Fizzy answer engine: kb (offline knowledge base) | online | local.
+  String get fizzyMode => _p.getString('fizzyMode') ?? 'kb';
+  set fizzyMode(String v) => _p.setString('fizzyMode', v);
+
+  /// Local OpenAI-compatible server that runs the downloaded GGUF
+  /// (llama.cpp server, PocketPal, LLMFarm ...). Off-device by design:
+  /// FZ Manager never loads a model into memory itself.
+  String get localServerUrl => _p.getString('localServerUrl') ?? 'http://127.0.0.1:8080/v1';
+  set localServerUrl(String v) => _p.setString('localServerUrl', v);
+  String get localServerModel => _p.getString('localServerModel') ?? 'SmolLM2-135M';
+  set localServerModel(String v) => _p.setString('localServerModel', v);
+
+  /// Which recommended model id the user picked to download (persist choice).
+  String get recommendedModelId => _p.getString('recommendedModelId') ?? 'smollm2-135m-q4km';
+  set recommendedModelId(String v) => _p.setString('recommendedModelId', v);
+  String get downloadedModelFile => _p.getString('downloadedModelFile') ?? '';
+  set downloadedModelFile(String v) => _p.setString('downloadedModelFile', v);
+
   Set<String> get favorites => (_p.getStringList(_favorites) ?? []).toSet();
   set favorites(Set<String> v) => _p.setStringList(_favorites, v.toList());
 

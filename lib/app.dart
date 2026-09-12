@@ -171,6 +171,9 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Transient: Fizzy is waiting for a model reply (not persisted).
+  bool fizzyBusy = false;
+
   bool get fizzyOnline => store.fizzyOnline;
   set fizzyOnline(bool v) {
     store.fizzyOnline = v;
@@ -190,7 +193,32 @@ class AppState extends ChangeNotifier {
   }
 
   String get modelUrl => store.modelUrl;
+  set modelUrl(String v) => store.modelUrl = v;
   String get modelName => store.modelName;
+  set modelName(String v) => store.modelName = v;
+
+  String get fizzyMode => store.fizzyMode;
+  set fizzyMode(String v) {
+    store.fizzyMode = v;
+    notifyListeners();
+  }
+
+  String get localServerUrl => store.localServerUrl;
+  set localServerUrl(String v) {
+    store.localServerUrl = v;
+    notifyListeners();
+  }
+
+  String get localServerModel => store.localServerModel;
+  set localServerModel(String v) {
+    store.localServerModel = v;
+    notifyListeners();
+  }
+
+  String get recommendedModelId => store.recommendedModelId;
+  set recommendedModelId(String v) => store.recommendedModelId = v;
+  String get downloadedModelFile => store.downloadedModelFile;
+  set downloadedModelFile(String v) => store.downloadedModelFile = v;
 
   Set<String> get favorites => _favorites;
   set favorites(Set<String> v) {
@@ -274,6 +302,9 @@ class FzApp extends StatelessWidget {
               colorScheme: ColorScheme.fromSeed(seedColor: state.accentColor),
               useMaterial3: true,
               visualDensity: _density(state.density),
+              pageTransitionsTheme: const PageTransitionsTheme(builders: {
+                TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+              }),
             ),
             darkTheme: ThemeData(
               colorScheme: ColorScheme.fromSeed(
@@ -282,6 +313,9 @@ class FzApp extends StatelessWidget {
               ),
               useMaterial3: true,
               visualDensity: _density(state.density),
+              pageTransitionsTheme: const PageTransitionsTheme(builders: {
+                TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
+              }),
               scaffoldBackgroundColor: const Color(0xff0d1020),
               cardTheme: const CardThemeData(color: Color(0xff171b31)),
             ),

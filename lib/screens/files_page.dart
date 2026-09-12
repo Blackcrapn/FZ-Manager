@@ -5,6 +5,8 @@ import '../app.dart';
 import '../widgets.dart';
 import '../path_service.dart';
 import '../native_service.dart';
+import 'media_viewer.dart';
+import 'root_page.dart';
 
 class FileEntry {
   FileEntry(this.name, this.path, this.directory, this.size, this.modified);
@@ -159,6 +161,15 @@ class _FilesPageState extends State<FilesPage> {
                     .headlineSmall
                     ?.copyWith(fontWeight: FontWeight.w800)),
             const Spacer(),
+            IconButton(
+              tooltip: tr(s, 'Корневой раздел', 'Root filesystem'),
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => Scaffold(
+                        appBar: AppBar(title: Text(tr(s, 'Корневой раздел', 'Root filesystem'))),
+                        body: RootPage(state: s),
+                      ))),
+              icon: const Icon(Icons.admin_panel_settings_rounded),
+            ),
             IconButton(
               tooltip: tr(s, 'Избранное', 'Favorites'),
               onPressed: () =>
@@ -347,6 +358,10 @@ class _FilesPageState extends State<FilesPage> {
     }
     if (ext == '.sh') return Icon(Icons.terminal_rounded, size: size,
         color: const Color(0xff37d6c0));
+    if (kAudioExt.contains(ext)) return Icon(Icons.music_note_rounded,
+        size: size, color: const Color(0xffec407a));
+    if (kVideoExt.contains(ext)) return Icon(Icons.movie_rounded,
+        size: size, color: const Color(0xff7c4dff));
     if (ext == '.apk') return Icon(Icons.android_rounded, size: size,
         color: const Color(0xff4caf50));
     if (ext == '.zip' || ext == '.rar' || ext == '.7z') {
@@ -407,6 +422,10 @@ class _FilesPageState extends State<FilesPage> {
     final ext = _ext(e.name);
     if (_imageExt.contains(ext)) {
       _viewImage(e);
+    } else if (kMediaExt.contains(ext)) {
+      s.log('${tr(s, 'Плеер', 'Player')}: ${e.path}');
+      Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => MediaViewerPage(state: s, path: e.path)));
     } else if (_textExt.contains(ext)) {
       _viewText(e, asRoot: false);
     } else if (ext == '.apk') {

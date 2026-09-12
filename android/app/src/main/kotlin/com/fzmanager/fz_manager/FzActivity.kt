@@ -56,6 +56,7 @@ class FzActivity : FlutterActivity() {
                 }
                 "startMusicEffect" -> { startMusicWatcher(); result.success(true) }
                 "stopMusicEffect" -> { stopMusicWatcher(); result.success(true) }
+                "deviceInfo" -> result.success(buildDeviceInfo())
                 "rootAvailable" -> {
                     // Runs off the main thread: su can block for seconds.
                     Thread {
@@ -67,6 +68,12 @@ class FzActivity : FlutterActivity() {
                     Thread {
                         val probe = buildRootProbe()
                         android.os.Handler(android.os.Looper.getMainLooper()).post { result.success(probe) }
+                    }.start()
+                }
+                "deviceInfo" -> {
+                    Thread {
+                        val info = buildDeviceInfo()
+                        android.os.Handler(android.os.Looper.getMainLooper()).post { result.success(info) }
                     }.start()
                 }
                 "rootExec" -> {
@@ -122,20 +129,27 @@ class FzActivity : FlutterActivity() {
         val rootGranted = idOut.contains("uid=0")
         info["rootGranted"] = rootGranted
         info["idOutput"] = idOut.trim()
-
-        // Managers
         val kver = execCapture("uname -r 2>/dev/null", 3).trim()
-        val hasKsu = kver.contains("ksu", true) || kver.contains("K9", true) ||
-            execCapture("grep -qi ksu /proc/version 2>/dev/null && echo KSU || true", 3).contains("KSU") ||
-            java.io.File("/data/adb/ksu").exists()
-        val hasApatch = java.io.File("/data/adb/ap").exists() ||
-            kver.contains("apatch", true)
-        val magiskOut = execCapture("magisk -v 2>/dev/null || echo NOMAGISK", 4)
-        val hasMagisk = !magiskOut.contains("NOMAGISK") && magiskOut.isNotBlank() && rootGranted
-        val superSU = execCapture("su -c 'ls /system/xbin/daemonsu 2>/dev/null'", 3).contains("daemonsu") ||
+
+        // Managers must be detected even when su was not granted (or denied),
+        // otherwise the UI would claim "Unknown" on a rooted device.
+        fun exists(p: String) = java.io.File(p).exists()
+        val hasKsu = kver.contains("ksu", true) || exists("/data/adb/ksu") ||
+            exists("/data/adb/ksud") || exists("/debug_ramdisk/ksud") ||
+            packageExists("me.weishu.kernelsu")
+        val hasApatch = exists("/data/adb/ap") || exists("/data/adb/apd") ||
+            kver.contains("apatch", true) || packageExists("me.garfieldhan.apatch")
+        val magiskOut = (if (rootGranted) execCapture("magisk -v 2>/dev/null", 4) else "")
+        val magiskPaths = listOf("/sbin/magisk", "/debug_ramdisk/magisk", "/data/adb/magisk/magisk")
+        val hasMagisk = magiskOut.isNotBlank() && !magiskOut.contains("not found") ||
+            magiskPaths.any { exists(it) } || exists("/sbin/.magisk") ||
+            packageExists("com.topjohnwu.magisk") || packageExists("io.github.vvb2060.magisk")
+        val superSU = exists("/system/xbin/daemonsu") || exists("/system/bin/daemonsu") ||
             packageExists("eu.chainfire.supersu")
-        val magiskApp = packageExists("com.topjohnwu.magisk")
-        val ksudOut = execCapture("ls /data/adb/ksud 2>/dev/null || true", 3)
+        val ksudOut = exists("/data/adb/ksud") || exists("/debug_ramdisk/ksud")
+
+        val suFoundButDenied = !rootGranted && (foundBinaries.isNotEmpty() || hasMagisk || hasKsu || hasApatch)
+        info["suFoundButDenied"] = suFoundButDenied
 
         info["manager"] = when {
             hasApatch -> "APatch"
@@ -143,14 +157,15 @@ class FzActivity : FlutterActivity() {
             hasMagisk -> "Magisk"
             superSU -> "SuperSU"
             rootGranted -> "Unknown (root granted)"
+            suFoundButDenied -> "su present, access not granted"
             else -> "None"
         }
         info["hasMagisk"] = hasMagisk
         info["hasKernelSU"] = hasKsu
         info["hasAPatch"] = hasApatch
         info["hasSuperSU"] = superSU
-        info["magiskVersion"] = magiskOut.replace("NOMAGISK", "").trim()
-        info["ksud"] = ksudOut.isNotBlank()
+        info["magiskVersion"] = magiskOut.trim()
+        info["ksud"] = ksudOut
 
         info["kernel"] = kver
         info["androidVersion"] = android.os.Build.VERSION.RELEASE
@@ -193,6 +208,44 @@ class FzActivity : FlutterActivity() {
         out
     } catch (e: Exception) {
         ""
+    }
+
+    /** Device profile for the "Recommended local AI" system. */
+    private fun buildDeviceInfo(): Map<String, Any> {
+        val am = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+        val mem = android.app.ActivityManager.MemoryInfo()
+        am.getMemoryInfo(mem)
+        val cpuInfo = try {
+            val lines = java.io.File("/proc/cpuinfo").readLines()
+            val hw = lines.firstOrNull { it.startsWith("Hardware") }?.split(":")?.lastOrNull()?.trim() ?: ""
+            val brand = lines.firstOrNull { it.contains("CPU implementer") }?.substringAfter(":")?.trim() ?: ""
+            val part = lines.firstOrNull { it.contains("CPU part") }?.substringAfter(":")?.trim() ?: ""
+            Pair(hw, "$brand$part")
+        } catch (e: Exception) {
+            Pair("", "")
+        }
+        val cores = Runtime.getRuntime().availableProcessors()
+        val maxHz = try {
+            java.io.File("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq")
+                .readText().trim().toLongOrNull() ?: 0L
+        } catch (e: Exception) {
+            0L
+        }
+        return mapOf(
+            "ramTotalBytes" to mem.totalMem,
+            "ramAvailBytes" to mem.availMem,
+            "lowMemory" to mem.lowMemory,
+            "cores" to cores,
+            "maxFreqKHz" to maxHz,
+            "cpuHardware" to cpuInfo.first,
+            "cpuImpl" to cpuInfo.second,
+            "manufacturer" to android.os.Build.MANUFACTURER,
+            "model" to android.os.Build.MODEL,
+            "device" to android.os.Build.DEVICE,
+            "board" to android.os.Build.BOARD,
+            "release" to android.os.Build.VERSION.RELEASE,
+            "sdkInt" to android.os.Build.VERSION.SDK_INT,
+        )
     }
 
     private fun packageExists(pkg: String): Boolean = try {
